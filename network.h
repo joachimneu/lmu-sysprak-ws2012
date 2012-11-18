@@ -1,7 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#define HOSTNAME "sysprak.priv.lab.nm.ifi.lmu.de"
+#define HOSTNAME "localhost" //"sysprak.priv.lab.nm.ifi.lmu.de"
 #define PORTNUMBER 1357
 #define GAMEKINDNAME "Dame"
 
@@ -13,6 +13,6 @@
 #include <string.h>
 
 int openConnection();
-void performConnection(int);
+void performConnection(int, char *);
 
 #endif

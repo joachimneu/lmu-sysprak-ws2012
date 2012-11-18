@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -6,15 +8,33 @@
 #include <string.h>
 
 #include "network.h"
+#include "util.h"
 #include "debug.h"
 
-int _receiveLine(int sock, char **buf) {
-	char result = 0;
+void _receiveLine(int sock, char **buf) {
 	size_t length;
-	getline(buf, &length, fdopen(sock, "r"));
-	if((*buf)[0] == '+') { result = 1; } else { result = 0; }
-	DEBUG("_receiveLine: %d '%s'\n", result, *buf);
-	return result;
+	if(getline(buf, &length, fdopen(sock, "r")) <= 0) { // FEHLERBEHANDLUNG NOCHMAL CHECKEN!
+		die("Could not read from socket, I guess network connection closed!", EXIT_FAILURE);
+	}
+	DEBUG("_receiveLine: %d %d '%s'\n", (int) length, (int) strlen(*buf), *buf);
+}
+
+void recvLine(int sock, char **buf) {
+	_receiveLine(sock, buf);
+	if((*buf)[0] != '+') { // FEHLERBEHANDLUNG NOCHMAL CHECKEN!
+		printf("Gameserver Error: %s", buf[1]);
+		die("Fatal gameserver error!", EXIT_FAILURE);
+	}
+}
+
+void sendLine(int sock, const char* format, ...) {
+	char buf[1024];
+	va_list argptr;
+	va_start(argptr, format);
+	vsnprintf(buf, sizeof(buf), format, argptr);
+	va_end(argptr);
+	DEBUG("sendLine: %d '%s'\n", (int) strlen(buf), buf);
+	send(sock, buf, strlen(buf), 0);
 }
 
 int openConnection() {
@@ -29,29 +49,13 @@ int openConnection() {
 	return sock;
 }
 
-/*int line_recv(int fd, char *buf, int size) {*/
-/*	printf("line_recv start\n");*/
-/*	char c = 'A';*/
-/*	int i = 0;*/
-/*	while(recv(fd, &c, 1, 0)) {*/
-/*		buf[i] = c;*/
-/*		if(c == 10) {*/
-/*			buf[i+1] = 0;*/
-/*			printf("line_recv end 0\n");*/
-/*			return 0;*/
-/*		}*/
-/*		i++;*/
-/*	}*/
-/*	printf("line_recv end 1\n");*/
-/*	return 1;*/
-/*}*/
-
-void performConnection(int sock) {
+void performConnection(int sock, char *game_id) {
 	char *buf = NULL;
-/*	printf("%s\n", recv*/
-/*	send(sock, */
-/*	send(fd, line, strlen(line), 0);*/
 	printf("performing connection now ...\n");
-	_receiveLine(sock, &buf);
-	printf("{%s}\n", buf);
+	buf = NULL; recvLine(sock, &buf); free(buf);
+	sendLine(sock, "VERSION 1.0\n");
+	buf = NULL; recvLine(sock, &buf); free(buf);
+	sendLine(sock, "ID %s\n", game_id);
+	buf = NULL; recvLine(sock, &buf); free(buf);
+	buf = NULL; recvLine(sock, &buf); free(buf);
 }

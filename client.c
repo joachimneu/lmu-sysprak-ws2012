@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "util.h"
 #include "network.h"
 
 void usage(int argc, char *argv[]) {
@@ -16,18 +17,16 @@ int main(int argc, char *argv[]) {
 	int sock = 0;
 	
 	if(argc != 2) {
-		perror("Fehler! Dieses Programm benötigt genau einen Parameter!");
 		usage(argc, argv);
-		exit(EXIT_FAILURE);
+		die("Fehler! Dieses Programm benötigt genau einen Parameter!", EXIT_FAILURE);
 	}
 	if(strlen(argv[1]) != 13) {
-		perror("Fehler! Die Game-ID muss genau 13 Zeichen ohne Leerzeichen lang sein!");
 		usage(argc, argv);
-		exit(EXIT_FAILURE);
+		die("Fehler! Die Game-ID muss genau 13 Zeichen ohne Leerzeichen lang sein!", EXIT_FAILURE);
 	}
 	
 	sock = openConnection();
-	performConnection(sock);
+	performConnection(sock, argv[1]);
 	
 	return EXIT_SUCCESS;
 }
