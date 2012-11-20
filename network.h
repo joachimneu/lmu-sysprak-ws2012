@@ -1,7 +1,9 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#ifndef HOSTNAME
 #define HOSTNAME "localhost" //"sysprak.priv.lab.nm.ifi.lmu.de"
+#endif
 #define PORTNUMBER 1357
 #define GAMEKINDNAME "Dame"
 

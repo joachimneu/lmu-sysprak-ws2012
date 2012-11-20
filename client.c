@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 	GAME_STATE = (struct game_state *) malloc(sizeof(struct game_state));
 	strcpy(GAME_STATE->game_id, argv[1]);
 	
+	
 	openConnection();
 	performConnection();
 	
