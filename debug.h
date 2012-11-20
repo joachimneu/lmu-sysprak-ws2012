@@ -8,6 +8,8 @@
 #include <netdb.h>
 #include <string.h>
 
+#include "globals.h"
+
 #define DEBUG printf
 
 #endif

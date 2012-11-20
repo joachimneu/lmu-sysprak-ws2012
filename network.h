@@ -12,7 +12,9 @@
 #include <netdb.h>
 #include <string.h>
 
-int openConnection();
-void performConnection(int, char *);
+#include "globals.h"
+
+void openConnection();
+void performConnection();
 
 #endif

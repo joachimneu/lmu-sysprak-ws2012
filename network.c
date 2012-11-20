@@ -13,18 +13,21 @@
 
 void _receiveLine(int sock, char **buf) {
 	size_t length;
-	if(getline(buf, &length, fdopen(sock, "r")) <= 0) { // FEHLERBEHANDLUNG NOCHMAL CHECKEN!
-		die("Could not read from socket, I guess network connection closed!", EXIT_FAILURE);
+	FILE *fd = fdopen(sock, "r");
+	if(getline(buf, &length, fd) <= 0) {
+		die("Could not read from socket, I guess the network connection died!", EXIT_FAILURE);
 	}
 	DEBUG("_receiveLine: %d %d '%s'\n", (int) length, (int) strlen(*buf), *buf);
 }
 
-void recvLine(int sock, char **buf) {
-	_receiveLine(sock, buf);
-	if((*buf)[0] != '+') { // FEHLERBEHANDLUNG NOCHMAL CHECKEN!
-		printf("Gameserver Error: %s", buf[1]);
+char *recvLine(int sock) {
+	char *buf = NULL;
+	_receiveLine(sock, &buf);
+	if(buf[0] != '+') {
+		printf("Gameserver Error: %s", buf);
 		die("Fatal gameserver error!", EXIT_FAILURE);
 	}
+	return buf;
 }
 
 void sendLine(int sock, const char* format, ...) {
@@ -34,28 +37,51 @@ void sendLine(int sock, const char* format, ...) {
 	vsnprintf(buf, sizeof(buf), format, argptr);
 	va_end(argptr);
 	DEBUG("sendLine: %d '%s'\n", (int) strlen(buf), buf);
-	send(sock, buf, strlen(buf), 0);
+	if(send(sock, buf, strlen(buf), 0) < 0) {
+		die("Could not write to socket, I guess the network connection died!", EXIT_FAILURE);
+	}
 }
 
-int openConnection() {
+void dumpLine(int sock) {
+	char *buf = recvLine(sock);
+	free(buf);
+}
+
+void cmdVERSION(int sock) {
+	sendLine(sock, "VERSION 1.0\n");
+	dumpLine(sock);
+}
+
+void cmdID(int sock, char *game_id) {
+	sendLine(sock, "ID %s\n", game_id);
+	char *buf = recvLine(sock);
+	if(strcmp(buf, "+ PLAYING " GAMEKINDNAME "\n") != 0) {
+		die("Gameserver sent wrong game kind!", EXIT_FAILURE);
+	}
+	free(buf);
+	dumpLine(sock);
+	dumpLine(sock);
+}
+
+void openConnection() {
 	struct hostent *host_info;
 	struct sockaddr_in server;
-	host_info = gethostbyname(HOSTNAME); // FEHLERBEHANDLUNG!
-	int sock = socket(PF_INET, SOCK_STREAM, 0); // FEHLERBEHANDLUNG!
-	memcpy( (char *)&server.sin_addr, host_info->h_addr, host_info->h_length );
+	if((host_info = gethostbyname(HOSTNAME)) == NULL) {
+		die("Could not resolve hostname of the gameserver!", EXIT_FAILURE);
+	};
+	if((SOCKET = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+		die("Could not open socket!", EXIT_FAILURE);
+	};
+	memcpy( (char *)&server.sin_addr, host_info->h_addr_list[0], host_info->h_length );
 	server.sin_port = htons(PORTNUMBER);
 	server.sin_family = PF_INET;
-	connect(sock, (struct sockaddr *) &server, sizeof(server)); // FEHLERBEHANDLUNG!
-	return sock;
+	if(connect(SOCKET, (struct sockaddr *) &server, sizeof(server)) < 0) {
+		die("Could not connect to gameserver!", EXIT_FAILURE);
+	}
 }
 
-void performConnection(int sock, char *game_id) {
-	char *buf = NULL;
-	printf("performing connection now ...\n");
-	buf = NULL; recvLine(sock, &buf); free(buf);
-	sendLine(sock, "VERSION 1.0\n");
-	buf = NULL; recvLine(sock, &buf); free(buf);
-	sendLine(sock, "ID %s\n", game_id);
-	buf = NULL; recvLine(sock, &buf); free(buf);
-	buf = NULL; recvLine(sock, &buf); free(buf);
+void performConnection() {
+	dumpLine(SOCKET);
+	cmdVERSION(SOCKET);
+	cmdID(SOCKET, GAME_STATE->game_id);
 }
