@@ -12,25 +12,29 @@ int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
 
 void usage(int argc, char *argv[]) {
-	printf("BENUTZUNG: %s <Game-ID>\n", argv[0]);
-	printf("  Game-ID: 13stellige Game-ID ohne Leerzeichen\n");
+	// how to use this program
+	printf("USAGE: %s <gid>\n", argv[0]);
+	printf("  gid: 13-digit game-id without spaces\n");
 }
 
 int main(int argc, char *argv[]) {
+	// "validate" first parameter: game id (gid)
 	if(argc != 2) {
 		usage(argc, argv);
-		die("Fehler! Dieses Programm benötigt genau einen Parameter!", EXIT_FAILURE);
+		die("Error! This program needs exactly one parameter!", EXIT_FAILURE);
 	}
 	if(strlen(argv[1]) != 13) {
 		usage(argc, argv);
-		die("Fehler! Die Game-ID muss genau 13 Zeichen ohne Leerzeichen lang sein!", EXIT_FAILURE);
+		die("Error! The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
 	}
 	
+	// allocate global GAME_STATE struct
 	GAME_STATE = (struct game_state *) malloc(sizeof(struct game_state));
 	strcpy(GAME_STATE->game_id, argv[1]);
 	
-	
+	// open connection (i.e. socket + tcp connection)
 	openConnection();
+	// perform PROLOG phase of the protocol
 	performConnection();
 	
 	return EXIT_SUCCESS;
