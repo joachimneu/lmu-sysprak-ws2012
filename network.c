@@ -14,26 +14,29 @@
 
 #define PROTOCOL_LINE_LENGTH_MAX 512
 
-void _receiveLine(int sock, char **buf) {
+char *_receiveLine(int sock) {
+	char *buf;
 	int i = 0;
 	char c = 0;
 	// allocate space for the line to receive
-	(*buf) = (char *) malloc((PROTOCOL_LINE_LENGTH_MAX + 1) * sizeof(char));
+	buf = (char *) malloc((PROTOCOL_LINE_LENGTH_MAX + 1) * sizeof(char));
 	do {
 		// read a byte
 		if(read(sock, &c, 1) <= 0) {
 			die("Could not read from socket, I guess the network connection died!", EXIT_FAILURE);
 		}
 		// store the byte
-		(*buf)[i] = c;
+		buf[i] = c;
 		// move on to the next index
 		i++;
 	// end when the received byte was a \n-byte
 	} while(c != '\n');
 	// terminating 0-byte for the string
-	(*buf)[i] = 0;
-	(*buf)[strlen(*buf)-1] = 0; // we're not interested in the \n ...*/
-	DEBUG("_receiveLine: %d '%s'\n", (int) strlen(*buf), *buf);
+	buf[i] = 0;
+	buf[strlen(buf)-1] = 0; // we're not interested in the \n ...*/
+	DEBUG("_receiveLine: %d '%s'\n", (int) strlen(buf), buf);
+	return buf;
+	
 /*	// This old version of this function "ate" lines from time to time,*/
 /*	// presumably because of the fdopen-stuff ...*/
 /*	size_t length;*/
@@ -50,9 +53,9 @@ void _receiveLine(int sock, char **buf) {
 }
 
 char *recvLine(int sock) {
-	char *buf = NULL;
+	char *buf;
 	// receive the line
-	_receiveLine(sock, &buf);
+	buf = _receiveLine(sock);
 	// if the line is not positive, there's a fatal gameserver error
 	if(buf[0] != '+') {
 		printf("Gameserver Error: %s\n", buf);
