@@ -52,6 +52,17 @@ int main(int argc, char *argv[]) {
 	openConnection();
 	// perform PROLOG phase of the protocol
 	performConnection();
+
+	GAME_STATE->pid_connector = getpid();
+	if((GAME_STATE->pid_thinker = fork()) < 0) {
+		die("Error! fork() did not work.", EXIT_FAILURE);
+	}
+	else if(GAME_STATE->pid_thinker == 0) { //Kindprozess = Thinker
+		GAME_STATE->pid_thinker = getpid();
+	}
+	else { //Elternprozess = Connector
+	}
+		
 	
 	cleanup();
 	return EXIT_SUCCESS;
