@@ -4,7 +4,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
@@ -16,6 +16,7 @@
 
 int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
+enum whoami WHOAMI = CONNECTOR;
 
 void usage(int argc, char *argv[]) {
 	// how to use this program
@@ -63,12 +64,14 @@ int main(int argc, char *argv[]) {
 
 	GAME_STATE->pid_connector = getpid();
 	if((GAME_STATE->pid_thinker = fork()) < 0) {
-		die("Error! fork() did not work.", EXIT_FAILURE);
-	}
-	else if(GAME_STATE->pid_thinker == 0) { //Kindprozess = Thinker
+		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
+	} else if(GAME_STATE->pid_thinker == 0) { // Kindprozess = Thinker
+		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
-	}
-	else { //Elternprozess = Connector
+		// Thinker goes here ...
+	} else { //Elternprozess = Connector
+		WHOAMI = CONNECTOR;
+		// Connector goes here ...
 	}
 		
 	

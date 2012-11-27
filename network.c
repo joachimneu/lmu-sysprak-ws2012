@@ -102,10 +102,10 @@ void cmdID(int sock, char *game_id) {
 	sendLine(sock, "ID %s", game_id);
 	buf = recvLine(sock);
 	// check for right gamekind
-	if(strcmp(buf, "+ PLAYING " GAMEKINDNAME) != 0) {
+	if((strncmp(buf, "+ PLAYING", 9) != 0) || (strncmp(buf+9, GAME_STATE->config_gamekindname, strlen(GAME_STATE->config_gamekindname) != 0) != 0)) {
 		die("Gameserver sent wrong game kind!", EXIT_FAILURE);
 	}
-	DEBUG("We're playing '" GAMEKINDNAME "' as expected ...\n");
+	DEBUG("We're playing '%s' as expected ...\n", GAME_STATE->config_gamekindname);
 	free(buf);
 	buf = recvLine(sock);
 	// store the game name to the global GAME_STATE struct
@@ -141,7 +141,7 @@ void openConnection() {
 	struct hostent *host_info;
 	struct sockaddr_in server;
 	// resolve gameserver hostname
-	if((host_info = gethostbyname(HOSTNAME)) == NULL) {
+	if((host_info = gethostbyname(GAME_STATE->config_hostname)) == NULL) {
 		die("Could not resolve hostname of the gameserver!", EXIT_FAILURE);
 	};
 	// open socket
@@ -149,7 +149,7 @@ void openConnection() {
 		die("Could not open socket!", EXIT_FAILURE);
 	};
 	memcpy( (char *)&server.sin_addr, host_info->h_addr_list[0], host_info->h_length );
-	server.sin_port = htons(PORTNUMBER);
+	server.sin_port = htons(GAME_STATE->config_port);
 	server.sin_family = PF_INET;
 	// connect to gameserver
 	if(connect(SOCKET, (struct sockaddr *) &server, sizeof(server)) < 0) {

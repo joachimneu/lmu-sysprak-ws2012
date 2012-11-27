@@ -29,9 +29,11 @@ struct game_state {
   char config_gamekindname[512];
 };
 
+enum whoami { CONNECTOR, THINKER };
 
 extern int SOCKET;
 extern struct game_state *GAME_STATE;
+extern enum whoami WHOAMI;
 
 
 #endif
