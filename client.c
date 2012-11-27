@@ -10,28 +10,33 @@
 
 #include "util.h"
 #include "network.h"
+#include "config.h"
+
+#define DEFAULT_CONFIGURATION_FILE_NAME "client.conf"
 
 int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
 
 void usage(int argc, char *argv[]) {
 	// how to use this program
-	printf("USAGE: %s <gid>\n", argv[0]);
+	printf("USAGE: %s <gid> <<client.conf>>\n", argv[0]);
 	printf("  gid: 13-digit game-id without spaces\n");
+	printf("  client.conf (optional): configuration file, '" DEFAULT_CONFIGURATION_FILE_NAME "' is assumed for default\n");
 }
 
 int main(int argc, char *argv[]) {
 	int shmid = 0;
 	
 	// "validate" first parameter: game id (gid)
-	if(argc != 2) {
+	if(argc < 2 || argc > 3) {
 		usage(argc, argv);
-		die("Error! This program needs exactly one parameter!", EXIT_FAILURE);
+		die("Error! Wrong number of parameters", EXIT_FAILURE);
 	}
-	if(strlen(argv[1]) != 13) {
-		usage(argc, argv);
-		die("Error! The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
-	}
+
+  if(strlen(argv[1]) != 13) {
+	  usage(argc, argv);
+	  die("Error! The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
+  }
 	
 	// allocate shared memory for global GAME_STATE struct
 	// (maybe we should not use 0x23421337 here as SHM key?)
@@ -47,6 +52,9 @@ int main(int argc, char *argv[]) {
 	}
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
+	
+	// read configuration
+	readConfig((argc==3)?argv[2]:DEFAULT_CONFIGURATION_FILE_NAME);
 	
 	// open connection (i.e. socket + tcp connection)
 	openConnection();
