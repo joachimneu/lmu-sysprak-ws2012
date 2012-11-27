@@ -35,5 +35,4 @@ extern int SOCKET;
 extern struct game_state *GAME_STATE;
 extern enum whoami WHOAMI;
 
-
 #endif

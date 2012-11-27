@@ -20,9 +20,9 @@ enum whoami WHOAMI = CONNECTOR;
 
 void usage(int argc, char *argv[]) {
 	// how to use this program
-	printf("USAGE: %s <gid> <<client.conf>>\n", argv[0]);
+	printf("USAGE: %s <gid> [<config>]\n", argv[0]);
 	printf("  gid: 13-digit game-id without spaces\n");
-	printf("  client.conf (optional): configuration file, '" DEFAULT_CONFIGURATION_FILE_NAME "' is assumed for default\n");
+	printf("  config (optional): configuration file, '" DEFAULT_CONFIGURATION_FILE_NAME "' is assumed for default\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -31,12 +31,11 @@ int main(int argc, char *argv[]) {
 	// "validate" first parameter: game id (gid)
 	if(argc < 2 || argc > 3) {
 		usage(argc, argv);
-		die("Error! Wrong number of parameters", EXIT_FAILURE);
+		die("Wrong number of parameters", EXIT_FAILURE);
 	}
-
   if(strlen(argv[1]) != 13) {
 	  usage(argc, argv);
-	  die("Error! The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
+	  die("The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
   }
 	
 	// allocate shared memory for global GAME_STATE struct
@@ -54,7 +53,7 @@ int main(int argc, char *argv[]) {
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
 	
-	// read configuration
+	// read configuration file
 	readConfig((argc==3)?argv[2]:DEFAULT_CONFIGURATION_FILE_NAME);
 	
 	// open connection (i.e. socket + tcp connection)
@@ -73,7 +72,6 @@ int main(int argc, char *argv[]) {
 		WHOAMI = CONNECTOR;
 		// Connector goes here ...
 	}
-		
 	
 	cleanup();
 	return EXIT_SUCCESS;
