@@ -16,4 +16,7 @@
 *.out
 *.app
 
+# Backups
+*~
+
 client
