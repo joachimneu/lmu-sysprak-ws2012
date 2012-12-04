@@ -3,6 +3,12 @@
 
 #include <unistd.h>
 
+struct opponent {
+	int id;
+	char color[512];
+	int state;
+};
+
 struct game_state {
 	// SHM ID
 	int shmid;
@@ -12,12 +18,10 @@ struct game_state {
 	char game_name[512];
 	
 	// Player Informationen
-	int num_player;
+	int num_players;
 	int own_player_id;
 	char own_player_color[512];
-	int other_player_id;
-	char other_player_color[512];
-	int other_player_state;
+	struct opponent *opponents;
 
 	// Process-IDs
 	pid_t pid_connector;
@@ -25,7 +29,7 @@ struct game_state {
 
   // configuration file parameters
   char config_hostname[512];
-  int config_port;
+  short config_port;
   char config_gamekindname[512];
 };
 

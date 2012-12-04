@@ -34,7 +34,7 @@ void readConfig(char *filename) {
 			sscanf(line, "%*[^=]%*[ =]%512s%*[^ \n]", GAME_STATE->config_hostname);
 			DEBUG("Config: hostname = %s\n", GAME_STATE->config_hostname);
 		} else if(strcmp(p_name, "port") == 0) {
-			sscanf(line, "%*[^=]%*[ =]%i%*[^ \n]", &(GAME_STATE->config_port));
+			sscanf(line, "%*[^=]%*[ =]%hi%*[^ \n]", &(GAME_STATE->config_port));
 			DEBUG("Config: port = %i\n", GAME_STATE->config_port);
 		} else if(strcmp(p_name, "gamekindname") == 0) {
 			sscanf(line, "%*[^=]%*[ =]%512s%*[^ \n]", GAME_STATE->config_gamekindname);

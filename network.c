@@ -102,23 +102,30 @@ void cmdID(int sock, char *game_id) {
 
 void cmdPLAYER(int sock) {
 	char *buf;
+	int i;
 	sendLine(sock, "PLAYER");
-	buf = recvLine(sock);
 	// read my player id and player color
+	buf = recvLine(sock);
 	sscanf(buf, "+ YOU %i %s", &(GAME_STATE->own_player_id), GAME_STATE->own_player_color);
 	free(buf);
 	DEBUG("My player id is %i and my color is '%s'.\n", GAME_STATE->own_player_id, GAME_STATE->own_player_color);
-	expectLine(sock, "+ TOTAL 2");
-	DEBUG("As expected, we're two players.\n");
+	// read total number of players
 	buf = recvLine(sock);
-	// read opponents player id and player color
-	sscanf(buf, "+ %i %s %i", &(GAME_STATE->other_player_id), GAME_STATE->other_player_color, &(GAME_STATE->other_player_state));
+	sscanf(buf, "+ TOTAL %i", &(GAME_STATE->num_players));
 	free(buf);
-	DEBUG("My opponent's player id is %i and his color is '%s'.\n", GAME_STATE->other_player_id, GAME_STATE->other_player_color);
-	if(GAME_STATE->other_player_state == 1) {
-		DEBUG("My opponent is ready.\n");
-	} else {
-		DEBUG("My opponent is not yet ready.\n");
+	DEBUG("There are %i players ...\n", GAME_STATE->num_players);
+	GAME_STATE->opponents = (struct opponent *) malloc(sizeof(struct opponent) * (GAME_STATE->num_players -1));
+	// read opponents player id, color and state
+	for(i = 0; i < GAME_STATE->num_players-1; i++) {
+		buf = recvLine(sock);
+		sscanf(buf, "+ %i %s %i", &(GAME_STATE->opponents[i].id), GAME_STATE->opponents[i].color, &(GAME_STATE->opponents[i].state));
+		free(buf);
+		DEBUG("My #%i opponent's player id is %i and his color is '%s'.\n", i+1, GAME_STATE->opponents[i].id, GAME_STATE->opponents[i].color);
+		if(GAME_STATE->opponents[i].state == 1) {
+			DEBUG("My opponent is ready.\n");
+		} else {
+			DEBUG("My opponent is not yet ready.\n");
+		}
 	}
 	expectLine(sock, "+ ENDPLAYERS");
 }
