@@ -159,3 +159,23 @@ void performConnection() {
 	cmdID(SOCKET, GAME_STATE->game_id);
 	cmdPLAYER(SOCKET);
 }
+
+int handleLine() {
+	char *buf;
+	buf = recvLine(SOCKET);
+	// possible lines: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
+	if(strcmp(buf, "+ WAIT") == 0) {
+		sendLine(SOCKET, "OKWAIT");
+	} else if(strcmp(buf, "+ GAMEOVER") == 0) {
+		// read and output winner and stats
+		// ...
+		die("GAMEOVER!", EXIT_SUCCESS);
+	} else if(strcmp(buf, "+ MOVE") == 0) {
+		free(buf);
+		return 1;
+	} else {
+		die("Recieved an unspecified command from server!", EXIT_FAILURE);
+	}
+	free(buf);
+	return 0;
+}

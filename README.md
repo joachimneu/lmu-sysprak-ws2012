@@ -13,6 +13,7 @@ Dann werden zwei Weiterleitungen eingerichtet:
 
 localhost:8080 <===> sysprak.priv.lab.nm.ifi.lmu.de:80 (damit kannst du den
 Gameserver steuern, Spiele anlegen etc.)
+
 localhost:1357 <===> sysprak.priv.lab.nm.ifi.lmu.de:1357 (der eigentliche
 Gameserver lauscht hinter diesem Port)
 

@@ -11,6 +11,7 @@
 #include "util.h"
 #include "network.h"
 #include "config.h"
+#include "debug.h"
 
 #define DEFAULT_CONFIG_FILE_NAME "client.conf"
 
@@ -61,30 +62,25 @@ int main(int argc, char *argv[]) {
 	// perform PROLOG phase of the protocol
 	performConnection();
 
-	GAME_STATE->pid_connector = getpid();
-	if((GAME_STATE->pid_thinker = fork()) < 0) {
+	GAME_STATE->pid_thinker = getpid();
+	if((GAME_STATE->pid_connector = fork()) < 0) {
 		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
-	} else if(GAME_STATE->pid_thinker == 0) { // Kindprozess = Thinker
+	} else if(GAME_STATE->pid_connector == 0) { // child process = connector
+		WHOAMI = CONNECTOR;
+		while(1) {
+			if(handleLine()) {
+				// read spielfeld
+				// THINK !
+				// send spielzug
+				DEBUG("Oh gee, we have to think every now and then!!!\n");
+			}
+		}
+	} else { // parent process = thinker
 		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
 		// Thinker goes here ...
-	} else { //Elternprozess = Connector
-		WHOAMI = CONNECTOR;
-		char *buf;
-		do {
-			buf=recvLine(SOCKET);
-			// expect&handle one of the following commands: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
-			if (strcmp(buf, "+ WAIT") == 0) {
-				sendLine(sock, "OKWAIT");
-			} else if(strcmp(buf, "+ GAMEOVER") == 0) {
-				// Read+output winner&stats
-			} else if(strcmp(buf, "+ MOVE") == 0) {
-				// ...
-			} else {
-				die("I recieved unspecified command from server!", EXIT_FAILURE)
-			}
-			free(buf);			
-		} while(true);
+		int status;
+		wait(&status);
 	}
 	
 	cleanup();

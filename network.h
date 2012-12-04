@@ -12,5 +12,6 @@
 
 void openConnection();
 void performConnection();
+int handleLine();
 
 #endif

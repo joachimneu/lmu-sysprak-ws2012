@@ -8,8 +8,8 @@
 #include "util.h"
 
 void cleanup() {
-	// only connector cleans shared ressources up ...
-	if(WHOAMI == CONNECTOR) {
+	// only thinker cleans shared ressources up ...
+	if(WHOAMI == THINKER) {
 		// close socket if necessary
 		if(SOCKET != -1) {
 			close(SOCKET);
