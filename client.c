@@ -12,7 +12,7 @@
 #include "network.h"
 #include "config.h"
 
-#define DEFAULT_CONFIGURATION_FILE_NAME "client.conf"
+#define DEFAULT_CONFIG_FILE_NAME "client.conf"
 
 int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
@@ -22,7 +22,7 @@ void usage(int argc, char *argv[]) {
 	// how to use this program
 	printf("USAGE: %s <gid> [<config>]\n", argv[0]);
 	printf("  gid: 13-digit game-id without spaces\n");
-	printf("  config (optional): configuration file, '" DEFAULT_CONFIGURATION_FILE_NAME "' is assumed for default\n");
+	printf("  config (optional): configuration file, '" DEFAULT_CONFIG_FILE_NAME "' is assumed for default\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -53,8 +53,8 @@ int main(int argc, char *argv[]) {
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
 	
-	// read configuration file
-	readConfig((argc==3)?argv[2]:DEFAULT_CONFIGURATION_FILE_NAME);
+	// read configuration file (from 2nd argument if provided, o/w use default path)
+	readConfig((argc==3)?argv[2]:DEFAULT_CONFIG_FILE_NAME);
 	
 	// open connection (i.e. socket + tcp connection)
 	openConnection();
@@ -70,9 +70,42 @@ int main(int argc, char *argv[]) {
 		// Thinker goes here ...
 	} else { //Elternprozess = Connector
 		WHOAMI = CONNECTOR;
-		// Connector goes here ...
+		char *buf;
+		do {
+			buf=recvLine(SOCKET);
+			// expect&handle one of the following commands: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
+			if (strcmp(buf, "+ WAIT") == 0) {
+				sendLine(sock, "OKWAIT");
+			} else if(strcmp(buf, "+ GAMEOVER") == 0) {
+				// Read+output winner&stats
+			} else if(strcmp(buf, "+ MOVE") == 0) {
+				// ...
+			} else {
+				die("I recieved unspecified command from server!", EXIT_FAILURE)
+			}
+			free(buf);			
+		} while(true);
 	}
 	
 	cleanup();
 	return EXIT_SUCCESS;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
