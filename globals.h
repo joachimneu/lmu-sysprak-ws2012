@@ -27,10 +27,10 @@ struct game_state {
 	pid_t pid_connector;
 	pid_t pid_thinker;
 
-  // configuration file parameters
-  char config_hostname[512];
-  short config_port;
-  char config_gamekindname[512];
+	// configuration file parameters
+	char config_hostname[512];
+	short config_port;
+	char config_gamekindname[512];
 };
 
 enum whoami { CONNECTOR, THINKER };

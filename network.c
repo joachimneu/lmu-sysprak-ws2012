@@ -170,7 +170,7 @@ int handleLine() {
 		// read and output winner and stats
 		// ...
 		die("GAMEOVER!", EXIT_SUCCESS);
-	} else if(strcmp(buf, "+ MOVE") == 0) {
+	} else if(strncmp(buf, "+ MOVE ", 7) == 0) {
 		free(buf);
 		return 1;
 	} else {

@@ -17,7 +17,7 @@
 
 int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
-enum whoami WHOAMI = CONNECTOR;
+enum whoami WHOAMI = THINKER;
 
 void usage(int argc, char *argv[]) {
 	// how to use this program
@@ -28,6 +28,7 @@ void usage(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 	int shmid = 0;
+	pid_t tmp_pid;
 	
 	// "validate" first parameter: game id (gid)
 	if(argc < 2 || argc > 3) {
@@ -41,7 +42,7 @@ int main(int argc, char *argv[]) {
 	
 	// allocate shared memory for global GAME_STATE struct
 	// (maybe we should not use 0x23421337 here as SHM key?)
-	if((shmid = shmget(ftok("client.c", 0x23421337), sizeof(struct game_state), IPC_CREAT | IPC_EXCL | 0666)) < 0) {
+	if((shmid = shmget(IPC_PRIVATE, sizeof(struct game_state), IPC_CREAT | IPC_EXCL | 0666)) < 0) {
 		die("Could not get shared memory!", EXIT_FAILURE);
 	}
 	GAME_STATE = (struct game_state *) shmat(shmid, NULL, 0);
@@ -63,9 +64,10 @@ int main(int argc, char *argv[]) {
 	performConnection();
 
 	GAME_STATE->pid_thinker = getpid();
-	if((GAME_STATE->pid_connector = fork()) < 0) {
+	tmp_pid = fork();
+	if(tmp_pid < 0) {
 		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
-	} else if(GAME_STATE->pid_connector == 0) { // child process = connector
+	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
 		while(1) {
 			if(handleLine()) {
@@ -76,6 +78,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	} else { // parent process = thinker
+		GAME_STATE->pid_connector = tmp_pid;
 		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
 		// Thinker goes here ...
