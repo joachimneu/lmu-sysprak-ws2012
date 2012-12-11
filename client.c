@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/prctl.h>
 
 #include "util.h"
 #include "network.h"
@@ -18,6 +19,13 @@
 int SOCKET = -1;
 struct game_state *GAME_STATE = (struct game_state *) -1;
 enum whoami WHOAMI = THINKER;
+
+void connector_handler_sigusr2() {
+	// as our thinker defected to the enemy (we didn't expect that ...)
+	// the connector has to clean the mess up ...
+	cleanup();
+	die("Oh no! They killed my father! Or did he kill himself? Who knows ...", EXIT_FAILURE);
+}
 
 void usage(int argc, char *argv[]) {
 	// how to use this program
@@ -69,6 +77,10 @@ int main(int argc, char *argv[]) {
 		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
 	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
+		// connect signal handler for SIGUSR2
+		signal(SIGUSR2, connector_handler_sigusr2);
+		// receive SIGUSR2 if parent (= thinker) dies
+		prctl(PR_SET_PDEATHSIG, SIGUSR2);
 		while(1) {
 			if(handleLine()) {
 				// read spielfeld
@@ -86,25 +98,8 @@ int main(int argc, char *argv[]) {
 		wait(&status);
 	}
 	
-	cleanup();
+	if(WHOAMI == THINKER) {
+		cleanup();
+	}
 	return EXIT_SUCCESS;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

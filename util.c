@@ -8,16 +8,13 @@
 #include "util.h"
 
 void cleanup() {
-	// only thinker cleans shared ressources up ...
-	if(WHOAMI == THINKER) {
-		// close socket if necessary
-		if(SOCKET != -1) {
-			close(SOCKET);
-		}
-		// free GAME_STATE struct's space if necessary
-		if(GAME_STATE != (struct game_state *) -1) {
-			shmctl(GAME_STATE->shmid, IPC_RMID, 0);
-		}
+	// close socket if necessary
+	if(SOCKET != -1) {
+		close(SOCKET);
+	}
+	// free GAME_STATE struct's space if necessary
+	if(GAME_STATE != (struct game_state *) -1) {
+		shmctl(GAME_STATE->shmid, IPC_RMID, 0);
 	}
 }
 
@@ -30,7 +27,9 @@ void die(char *string, int exit_code) {
 	} else {
 		printf("[UNKNOWN  ] Fatal error: %s\n", string);
 	}
-	cleanup();
+	if(WHOAMI == THINKER) {
+		cleanup();
+	}
 	// exit
 	exit(exit_code);
 }
