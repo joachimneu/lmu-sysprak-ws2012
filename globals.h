@@ -31,6 +31,15 @@ struct game_state {
 	char config_hostname[512];
 	short config_port;
 	char config_gamekindname[512];
+	
+	// field SHM ID (for the field shared between connector/thinker)
+	int field_shmid;
+};
+
+struct field {
+	int width;
+	int height;
+	int *field_data;
 };
 
 enum whoami { CONNECTOR, THINKER };

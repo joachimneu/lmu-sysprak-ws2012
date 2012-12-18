@@ -13,5 +13,8 @@
 void openConnection();
 void performConnection();
 int handleLine();
+struct field *receiveField(int);
+void sendTHINKING(int);
+void expectOKTHINK(int);
 
 #endif

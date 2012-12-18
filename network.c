@@ -30,7 +30,7 @@ char *_receiveLine(int sock) {
 		// move on to the next index
 		i++;
 	// end when the received byte was a \n-byte
-	} while(c != '\n');
+	} while((c != '\n') && (i < 512));
 	// terminating 0-byte for the string
 	buf[i] = 0;
 	buf[strlen(buf)-1] = 0; // we're not interested in the \n ...*/
@@ -163,7 +163,7 @@ void performConnection() {
 int handleLine() {
 	char *buf;
 	buf = recvLine(SOCKET);
-	// possible lines: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
+	// possible lines/commands to receive: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
 	if(strcmp(buf, "+ WAIT") == 0) {
 		sendLine(SOCKET, "OKWAIT");
 	} else if(strcmp(buf, "+ GAMEOVER") == 0) {
@@ -172,10 +172,50 @@ int handleLine() {
 		die("GAMEOVER!", EXIT_SUCCESS);
 	} else if(strncmp(buf, "+ MOVE ", 7) == 0) {
 		free(buf);
+		dumpLine(SOCKET);
 		return 1;
 	} else {
 		die("Recieved an unspecified command from server!", EXIT_FAILURE);
 	}
 	free(buf);
 	return 0;
+}
+
+struct field *receiveField(int sock) {
+	struct field *f = malloc(sizeof(struct field));
+	char *buf, *bufptr;
+	int i, j, current_field, current_x, current_y;
+	// "+ FIELD <width> <height>"
+	buf = recvLine(sock);
+	sscanf(buf, "+ FIELD %i,%i", &(f->width), &(f->height)); // receive width and height
+	free(buf);
+	f->field_data = (int *) malloc(sizeof(int) * f->width * f->height); // allocate space for the field data
+	// read field rows: "+ <Y> <X_1,Y> <X_2,Y> ... <X_n,Y>"
+	for(i = 0; i < f->height; i++) {
+		buf = recvLine(sock);
+		bufptr = buf;
+		// read current y coordinate
+		bufptr = strstr(bufptr, " ") + 1;
+		sscanf(bufptr, "%i ", &current_y);
+		current_y--;
+		for(j = 0; j < f->width; j++) {
+			// read fields ...
+			current_x = j;
+			bufptr = strstr(bufptr, " ") + 1;
+			sscanf(bufptr, "%i ", &current_field);
+			f->field_data[current_y * f->width + current_x] = current_field;
+		}
+		free(buf);
+	}
+	// "+ ENDFIELD"
+	expectLine(SOCKET, "+ ENDFIELD");
+	return f;
+}
+
+void sendTHINKING(int sock) {
+	sendLine(sock, "THINKING");
+}
+
+void expectOKTHINK(int sock) {
+	expectLine(sock, "+ OKTHINK");
 }

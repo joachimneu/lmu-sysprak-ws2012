@@ -11,6 +11,7 @@
 
 #include "util.h"
 #include "network.h"
+#include "ai.h"
 #include "config.h"
 #include "debug.h"
 
@@ -25,6 +26,34 @@ void connector_handler_sigusr2() {
 	// the connector has to clean the mess up ...
 	cleanup();
 	die("Oh no! They killed my father! Or did he kill himself? Who knows ...", EXIT_FAILURE);
+}
+
+void thinker_handler_sigusr1() {
+	if(GAME_STATE->field_shmid != 0) {
+		// read field from shared memory
+		struct field *field = (struct field *) malloc(sizeof(struct field));
+		char *serialized_field = (char *) shmat(GAME_STATE->field_shmid, NULL, 0);
+		if(serialized_field == (char *) -1) {
+			die("Could not attach shared memory!", EXIT_FAILURE);
+		}
+		fieldDeserialize(serialized_field, field);
+		if(shmdt(serialized_field) == -1) {
+			die("Could not detach shared memory!", EXIT_FAILURE);
+		}
+		if(shmctl(GAME_STATE->field_shmid, IPC_RMID, 0) == -1) {
+			die("Could not remove shared memory!", EXIT_FAILURE);
+		}
+		
+		// clear shared memory
+		GAME_STATE->field_shmid = 0;
+		
+		// think
+		think(field);
+		
+		// free field
+		free(field->field_data);
+		free(field);
+	}
 }
 
 void usage(int argc, char *argv[]) {
@@ -62,6 +91,7 @@ int main(int argc, char *argv[]) {
 	}
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
+	GAME_STATE->field_shmid = 0;
 	
 	// read configuration file (from 2nd argument if provided, o/w use default path)
 	readConfig((argc==3)?argv[2]:DEFAULT_CONFIG_FILE_NAME);
@@ -77,15 +107,40 @@ int main(int argc, char *argv[]) {
 		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
 	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
+		
 		// connect signal handler for SIGUSR2
 		signal(SIGUSR2, connector_handler_sigusr2);
 		// receive SIGUSR2 if parent (= thinker) dies
 		prctl(PR_SET_PDEATHSIG, SIGUSR2);
+		
+		int move_duration = 0;
 		while(1) {
-			if(handleLine()) {
-				// read spielfeld
-				// THINK !
-				// send spielzug
+			if((move_duration = handleLine())) {
+				struct field *field;
+				field = receiveField(SOCKET);
+				sendTHINKING(SOCKET);
+				
+				// serialize data into shm
+				if((GAME_STATE->field_shmid = shmget(IPC_PRIVATE, fieldSerializedSize(field), IPC_CREAT | IPC_EXCL | 0666)) < 0) {
+					die("Could not get shared memory!", EXIT_FAILURE);
+				}
+				char *serialized_field = (char *) shmat(GAME_STATE->field_shmid, NULL, 0);
+				if(serialized_field == (char *) -1) {
+					// thinker will remove the shm in cleanup()
+					die("Could not attach shared memory!", EXIT_FAILURE);
+				}
+				fieldSerialize(field, serialized_field);
+				if(shmdt(serialized_field) == -1) {
+					// thinker will remove the shm in cleanup()
+					die("Could not detach shared memory!", EXIT_FAILURE);
+				}
+				free(field->field_data);
+				free(field);
+				
+				// make thinker think
+				kill(GAME_STATE->pid_thinker, SIGUSR1);
+				
+				expectOKTHINK(SOCKET);
 				DEBUG("Oh gee, we have to think every now and then!!!\n");
 			}
 		}
@@ -93,9 +148,17 @@ int main(int argc, char *argv[]) {
 		GAME_STATE->pid_connector = tmp_pid;
 		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
-		// Thinker goes here ...
+		
+		// connect signal handler for SIGUSR1
+		signal(SIGUSR1, thinker_handler_sigusr1);
+		
+		// wait for connector to finish
 		int status;
-		wait(&status);
+		while(wait(&status) == -1) {
+			if(status != 0) {
+				break;
+			}
+		}
 	}
 	
 	if(WHOAMI == THINKER) {

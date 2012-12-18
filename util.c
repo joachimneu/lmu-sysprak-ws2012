@@ -14,6 +14,9 @@ void cleanup() {
 	}
 	// free GAME_STATE struct's space if necessary
 	if(GAME_STATE != (struct game_state *) -1) {
+		if(GAME_STATE->field_shmid > 0) {
+			shmctl(GAME_STATE->field_shmid, IPC_RMID, 0);
+		}
 		shmctl(GAME_STATE->shmid, IPC_RMID, 0);
 	}
 }
@@ -32,4 +35,29 @@ void die(char *string, int exit_code) {
 	}
 	// exit
 	exit(exit_code);
+}
+
+void fieldSerialize(struct field *f, char *dst) {
+	int i;
+	int *dst_ = (int *) dst;
+	dst_[0] = f->width;
+	dst_[1] = f->height;
+	for(i = 0; i < f->width*f->height; i++) {
+		dst_[i+2] = f->field_data[i];
+	}
+}
+
+void fieldDeserialize(char *src, struct field *f) {
+	int i;
+	int *src_ = (int *) src;
+	f->width = src_[0];
+	f->height = src_[1];
+	f->field_data = (int *) malloc(sizeof(int) * f->width*f->height);
+	for(i = 0; i < f->width*f->height; i++) {
+		f->field_data[i] = src_[i+2];
+	}
+}
+
+int fieldSerializedSize(struct field *f) {
+	return sizeof(int) * (f->width*f->height + 2);
 }

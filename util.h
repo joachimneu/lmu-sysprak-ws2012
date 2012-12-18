@@ -8,4 +8,8 @@
 void cleanup();
 void die(char *, int);
 
+void fieldSerialize(struct field *, char *);
+void fieldDeserialize(char *, struct field *);
+int fieldSerializedSize(struct field *);
+
 #endif

@@ -3,7 +3,7 @@ CC_FLAGS = -Wall -Werror -std=c99 -pedantic -D_POSIX_C_SOURCE=201211 -D_XOPEN_SO
 
 CC = $(CC_EXE) $(CC_FLAGS)
 
-client: client.c network.o debug.o util.o config.o
+client: client.c network.o ai.o debug.o util.o config.o
 
 clean:
 	rm client *.o
