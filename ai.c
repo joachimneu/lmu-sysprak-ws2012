@@ -5,19 +5,10 @@
 #include "globals.h"
 
 #include "ai.h"
+#include "util.h"
 
 char *think(struct field *field) {
-/*	fieldPrint(field);*/
-	
-	int x, y;
-	printf("think(): %i x %i\n", field->width, field->height);
-	for(y = 0; y < field->height; y++) {
-		printf("think(): ");
-		for(x = 0; x < field->width; x++) {
-			printf("%i ", field->field_data[y*field->height + x]);
-		}
-		printf("\n");
-	}
+	fieldPrint(field);
 	
 	// TODO: ...
 	char *result = malloc(sizeof(char) * 512);

@@ -61,3 +61,22 @@ void fieldDeserialize(char *src, struct field *f) {
 int fieldSerializedSize(struct field *f) {
 	return sizeof(int) * (f->width*f->height + 2);
 }
+
+void fieldPrint(struct field *f) {
+	// TODO: something might be wrong ...
+	int i,j;
+	printf("X/Y\t|");
+	for(j=0; j<f->width; j++) {
+		printf("%c\t|", 65+j);
+	}
+	printf("\n");
+	for(i=f->height-1; i>=0; i--) {
+		printf("%i\t|", i+1);
+		for(j=0; j<f->width; j++) {
+			printf("%c(%c%s)\t|", ((i+j)%2==1)?'W':'B', 
+					(f->field_data[i*f->width+j]<=1)?'E':(f->field_data[i*f->width+j]==3||f->field_data[i*f->width+j]==7)?'B':'W',
+					(f->field_data[i*f->width+j]>=7)?"*":"");
+		}
+		printf("\n");
+	}
+}

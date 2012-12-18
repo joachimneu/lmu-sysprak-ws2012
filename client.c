@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -18,6 +19,7 @@
 #define DEFAULT_CONFIG_FILE_NAME "client.conf"
 
 int SOCKET = -1;
+int PIPE[2];
 struct game_state *GAME_STATE = (struct game_state *) -1;
 enum whoami WHOAMI = THINKER;
 
@@ -92,14 +94,19 @@ int main(int argc, char *argv[]) {
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
 	GAME_STATE->field_shmid = 0;
-	
+
 	// read configuration file (from 2nd argument if provided, o/w use default path)
 	readConfig((argc==3)?argv[2]:DEFAULT_CONFIG_FILE_NAME);
-	
+
 	// open connection (i.e. socket + tcp connection)
 	openConnection();
 	// perform PROLOG phase of the protocol
 	performConnection();
+
+	// Create Pipe thinker<->connector
+	if(pipe(PIPE)==-1) {
+		die("Could not create pipe!", EXIT_FAILURE);
+	}
 
 	GAME_STATE->pid_thinker = getpid();
 	tmp_pid = fork();
@@ -108,11 +115,14 @@ int main(int argc, char *argv[]) {
 	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
 		
+		// close pipe for writing
+		close(PIPE[0]);
+		
 		// connect signal handler for SIGUSR2
 		signal(SIGUSR2, connector_handler_sigusr2);
 		// receive SIGUSR2 if parent (= thinker) dies
 		prctl(PR_SET_PDEATHSIG, SIGUSR2);
-		
+
 		int move_duration = 0;
 		while(1) {
 			if((move_duration = handleLine())) {
@@ -142,16 +152,38 @@ int main(int argc, char *argv[]) {
 				
 				expectOKTHINK(SOCKET);
 				DEBUG("Oh gee, we have to think every now and then!!!\n");
+
+				// Now we have to listen for new lines from the server and from the thinker simultaneously
+				while(1) {
+					fd_set* descriptors = NULL;
+					FD_ZERO(descriptors);
+					FD_SET(SOCKET, descriptors);
+					FD_SET(PIPE[1], descriptors);
+					select(2, descriptors, NULL, NULL, NULL); // waits until an element of 'descriptors' allows for nonblocking read operation (also stops on any signal)
+					if(FD_ISSET(SOCKET, descriptors)) { // new line from Server (we don't expect any lines -> must be an error)
+						dumpLine(SOCKET);
+					}
+					if(FD_ISSET(PIPE[1], descriptors)) { // Thinker done thinking
+						char *buf = (char *) malloc((PROTOCOL_LINE_LENGTH_MAX-5+1) * sizeof(char));
+						fscanf(fdopen(PIPE[1], "r"), "%[^\t\n]", buf);
+						cmdPLAY(SOCKET, buf);
+						free(buf);
+						break;
+					}
+				}
 			}
 		}
 	} else { // parent process = thinker
 		GAME_STATE->pid_connector = tmp_pid;
 		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
-		
+
+		// close pipe for reading
+		close(PIPE[1]);
+
 		// connect signal handler for SIGUSR1
 		signal(SIGUSR1, thinker_handler_sigusr1);
-		
+
 		// wait for connector to finish
 		int status;
 		while(wait(&status) == -1) {
