@@ -12,8 +12,6 @@
 #include "util.h"
 #include "debug.h"
 
-#define PROTOCOL_LINE_LENGTH_MAX 512
-
 char *_receiveLine(int sock) {
 	char *buf;
 	int i = 0;
@@ -164,18 +162,33 @@ int handleLine() {
 	char *buf;
 	buf = recvLine(SOCKET);
 	// possible lines: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
-	if(strcmp(buf, "+ WAIT") == 0) {
-		sendLine(SOCKET, "OKWAIT");
-	} else if(strcmp(buf, "+ GAMEOVER") == 0) {
-		// read and output winner and stats
-		// ...
+	if(strcmp(buf,"+ WAIT") == 0) {
+		sendLine(SOCKET,"OKWAIT");
+	} else if(strncmp(buf, "+ GAMEOVER ", 11) == 0) { // reads and prints Winner ID & color and quits
+		int id_winner;
+		char color_winner[512];
+		sscanf(buf, "+ GAMEOVER %i %s", &id_winner, color_winner);
+		printf("Gewinner hat ID: %i und Farbe: %s", id_winner, color_winner);
+		fieldPrint(recieveField(SOCKET));
 		die("GAMEOVER!", EXIT_SUCCESS);
-	} else if(strncmp(buf, "+ MOVE ", 7) == 0) {
+	} else if(strncmp(buf,"+ MOVE ",7) == 0) { // reads and returns duration of move, prints status message
+		int move_duration;
+		sscanf(buf,"+ MOVE %i ", &move_duration);
 		free(buf);
-		return 1;
+		buf = recvLine(SOCKET);
+		if (strncmp(buf, ("+ STATUS ",9)) == 0) { // Read Status if not NOSTATUS
+			printf("Statusmessage: %s",buf+9);
+		}
+		free(buf);
+		return move_duration;
 	} else {
 		die("Recieved an unspecified command from server!", EXIT_FAILURE);
 	}
 	free(buf);
 	return 0;
+}
+
+void cmdPLAY(char* move) {
+	sendLine(SOCKET, "PLAY %s", move);
+	dumpLine(SOCKET);
 }

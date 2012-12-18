@@ -7,5 +7,6 @@
 
 void cleanup();
 void die(char *, int);
+void fieldPrint(struct field *)
 
 #endif

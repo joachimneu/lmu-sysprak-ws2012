@@ -33,3 +33,22 @@ void die(char *string, int exit_code) {
 	// exit
 	exit(exit_code);
 }
+
+
+void fieldPrint(struct field *f) {
+	int i,j;
+	printf("X/Y\t|");
+	for(j=0; j<f->width; j++) {
+		printf("%c\t|", 65+j);
+	}
+	for(i=0; i<f->height; i++) {
+		printf("%i\t|", f->height-i);
+		for(j=0; j<f->width; j++) {
+			printf("%c(%c%s)\t|", ((i+j)%2==0)?'W':'B', 
+					(f->field_data[i*f->width+j]<=1)?'E':(f->field_data[i*f->width+j]==3||f->field_data[i*f->width+j]==7)?'S':'W',
+					(f->field_data[i*f->width+j]>=7)?"*":"");
+		}
+		printf("\n");
+	}
+}
+

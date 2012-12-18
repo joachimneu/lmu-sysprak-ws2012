@@ -36,6 +36,7 @@ struct game_state {
 enum whoami { CONNECTOR, THINKER };
 
 extern int SOCKET;
+extern int PIPE[2];
 extern struct game_state *GAME_STATE;
 extern enum whoami WHOAMI;
 

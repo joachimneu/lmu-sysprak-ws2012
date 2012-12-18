@@ -10,8 +10,11 @@
 
 #include "globals.h"
 
+#define PROTOCOL_LINE_LENGTH_MAX 512
+
 void openConnection();
 void performConnection();
 int handleLine();
+void cmdPLAY(char *);
 
 #endif
