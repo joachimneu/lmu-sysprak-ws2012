@@ -163,14 +163,18 @@ int handleLine() {
 	buf = recvLine(SOCKET);
 
 	// possible lines/commands to receive: '+ WAIT', '+ GAMEOVER' or '+ MOVE'
-	if(strcmp(buf,"+ WAIT") == 0) {
+	if(strncmp(buf, "+ WAIT", 6) == 0) {
 		sendLine(SOCKET,"OKWAIT");
 	} else if(strncmp(buf, "+ GAMEOVER ", 11) == 0) { // reads and prints winner id & color and quits
 		int id_winner;
 		char color_winner[512];
 		sscanf(buf, "+ GAMEOVER %i %s", &id_winner, color_winner);
 		printf("Gewinner hat ID: %i und Farbe: %s", id_winner, color_winner);
-		fieldPrint(receiveField(SOCKET));
+		struct field *f = receiveField(SOCKET);
+		fieldPrint(f);
+		free(f);
+		free(buf);
+		expectLine(SOCKET, "+ QUIT");
 		die("GAMEOVER!", EXIT_SUCCESS);
 	} else if(strncmp(buf,"+ MOVE ", 7) == 0) { // reads and returns duration of move, prints status message
 		int move_duration;
@@ -178,7 +182,7 @@ int handleLine() {
 		free(buf);
 		buf = recvLine(SOCKET);
 		if(strncmp(buf, "+ STATUS ", 9) == 0) { // read status if any (might be "+ NOSTATUS" otherwise)
-			printf("Status message: %s",buf+9);
+			printf("Status message: %s\n",buf+9);
 		}
 		free(buf);
 		return move_duration;
@@ -230,5 +234,5 @@ void expectOKTHINK(int sock) {
 
 void cmdPLAY(int sock, char *move) {
 	sendLine(sock, "PLAY %s", move);
-	dumpLine(sock);
+	expectLine(sock, "+ MOVEOK");
 }

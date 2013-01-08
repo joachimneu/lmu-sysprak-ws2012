@@ -12,5 +12,7 @@ void fieldSerialize(struct field *, char *);
 void fieldDeserialize(char *, struct field *);
 int fieldSerializedSize(struct field *);
 void fieldPrint(struct field *);
+void shortSerialize(short, char *);
+short shortDeserialize(char *);
 
 #endif

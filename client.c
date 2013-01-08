@@ -49,10 +49,17 @@ void thinker_handler_sigusr1() {
 		// clear shared memory
 		GAME_STATE->field_shmid = 0;
 		
-		// think
-		think(field);
+		// think & send move to connector
+		char *move = think(field);
+		printf("move: %s\n", move);
+		char buf[2];
+		shortSerialize(strlen(move), buf);
+		write(PIPE[1], buf, 2);
+		write(PIPE[1], move, strlen(move));
+		printf("written in die pipe ...\n");
 		
-		// free field
+		// free move & field
+		free(move);
 		free(field->field_data);
 		free(field);
 	}
@@ -115,13 +122,13 @@ int main(int argc, char *argv[]) {
 	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
 		
-		// close pipe for writing
-		close(PIPE[0]);
-		
 		// connect signal handler for SIGUSR2
 		signal(SIGUSR2, connector_handler_sigusr2);
 		// receive SIGUSR2 if parent (= thinker) dies
 		prctl(PR_SET_PDEATHSIG, SIGUSR2);
+		
+		// close write end of the pipe
+		close(PIPE[1]);
 
 		int move_duration = 0;
 		while(1) {
@@ -151,21 +158,24 @@ int main(int argc, char *argv[]) {
 				kill(GAME_STATE->pid_thinker, SIGUSR1);
 				
 				expectOKTHINK(SOCKET);
-				DEBUG("Oh gee, we have to think every now and then!!!\n");
 
 				// Now we have to listen for new lines from the server and from the thinker simultaneously
 				while(1) {
-					fd_set* descriptors = NULL;
-					FD_ZERO(descriptors);
-					FD_SET(SOCKET, descriptors);
-					FD_SET(PIPE[1], descriptors);
-					select(2, descriptors, NULL, NULL, NULL); // waits until an element of 'descriptors' allows for nonblocking read operation (also stops on any signal)
-					if(FD_ISSET(SOCKET, descriptors)) { // new line from Server (we don't expect any lines -> must be an error)
+					fd_set descriptors;
+					FD_ZERO(&descriptors);
+					FD_SET(SOCKET, &descriptors);
+					FD_SET(PIPE[0], &descriptors);
+					select(FD_SETSIZE, &descriptors, NULL, NULL, NULL); // waits until an element of 'descriptors' allows for nonblocking read operation (also stops on any signal)
+					if(FD_ISSET(SOCKET, &descriptors)) { // new line from Server (we don't expect any lines -> must be an error)
 						dumpLine(SOCKET);
 					}
-					if(FD_ISSET(PIPE[1], descriptors)) { // Thinker done thinking
-						char *buf = (char *) malloc((PROTOCOL_LINE_LENGTH_MAX-5+1) * sizeof(char));
-						fscanf(fdopen(PIPE[1], "r"), "%[^\t\n]", buf);
+					if(FD_ISSET(PIPE[0], &descriptors)) { // Thinker done thinking
+						char *buf = (char *) malloc(sizeof(char) * 512);
+						char len[2];
+						short l;
+						read(PIPE[0], &len, 2);
+						l = shortDeserialize(len);
+						read(PIPE[0], buf, l);
 						cmdPLAY(SOCKET, buf);
 						free(buf);
 						break;
@@ -178,16 +188,18 @@ int main(int argc, char *argv[]) {
 		WHOAMI = THINKER;
 		GAME_STATE->pid_thinker = getpid();
 
-		// close pipe for reading
-		close(PIPE[1]);
-
 		// connect signal handler for SIGUSR1
 		signal(SIGUSR1, thinker_handler_sigusr1);
 
+		// close read end of the pipe
+		close(PIPE[0]);
+
 		// wait for connector to finish
-		int status;
-		while(wait(&status) == -1) {
-			if(status != 0) {
+		int status, r;
+		while(1) {
+			r = wait(&status);
+			printf("wait() result %d status %d\n", r, status);
+			if(r != -1 && status != 0 && status != 4205776) {
 				break;
 			}
 		}

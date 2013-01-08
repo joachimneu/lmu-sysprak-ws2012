@@ -10,8 +10,7 @@
 char *think(struct field *field) {
 	fieldPrint(field);
 	
-	// TODO: ...
-	char *result = malloc(sizeof(char) * 512);
+	char *result = (char *) malloc(sizeof(char) * 512);
 	if(GAME_STATE->own_player_id == 1) {
 		// I'm white ...
 		strcpy(result, "E3:D4");
@@ -19,5 +18,6 @@ char *think(struct field *field) {
 		// I'm black ...
 		strcpy(result, "D6:C5");
 	}
+	
 	return result;
 }

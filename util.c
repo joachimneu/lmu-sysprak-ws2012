@@ -80,3 +80,12 @@ void fieldPrint(struct field *f) {
 		printf("\n");
 	}
 }
+
+void shortSerialize(short i, char dst[2]) {
+	dst[0] = (i & 0x00FF) >> 0;
+	dst[1] = (i & 0xFF00) >> 8;
+}
+
+short shortDeserialize(char dst[2]) {
+	return dst[0] + (dst[1] << 8);
+}
