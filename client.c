@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <errno.h>
+
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -31,6 +33,7 @@ void connector_handler_sigusr2() {
 }
 
 void thinker_handler_sigusr1() {
+	DEBUG("Thinker SIGUSR1 handler called, shmid: %d\n", GAME_STATE->field_shmid);
 	if(GAME_STATE->field_shmid != 0) {
 		// read field from shared memory
 		struct field *field = (struct field *) malloc(sizeof(struct field));
@@ -42,21 +45,18 @@ void thinker_handler_sigusr1() {
 		if(shmdt(serialized_field) == -1) {
 			die("Could not detach shared memory!", EXIT_FAILURE);
 		}
-		if(shmctl(GAME_STATE->field_shmid, IPC_RMID, 0) == -1) {
-			die("Could not remove shared memory!", EXIT_FAILURE);
-		}
 		
 		// clear shared memory
 		GAME_STATE->field_shmid = 0;
 		
 		// think & send move to connector
 		char *move = think(field);
-		printf("move: %s\n", move);
+		DEBUG("move: %s\n", move);
 		char buf[2];
 		shortSerialize(strlen(move), buf);
 		write(PIPE[1], buf, 2);
 		write(PIPE[1], move, strlen(move));
-		printf("written in die pipe ...\n");
+		DEBUG("written in die pipe ...\n");
 		
 		// free move & field
 		free(move);
@@ -98,6 +98,9 @@ int main(int argc, char *argv[]) {
 		shmctl(shmid, IPC_RMID, 0);
 		die("Could not attach shared memory!", EXIT_FAILURE);
 	}
+	if(shmctl(shmid, IPC_RMID, 0) == -1) {
+		die("Could not set shared memory for removal on last process' detachment!", EXIT_FAILURE);
+	}
 	GAME_STATE->shmid = shmid;
 	strcpy(GAME_STATE->game_id, argv[1]);
 	GAME_STATE->field_shmid = 0;
@@ -123,7 +126,13 @@ int main(int argc, char *argv[]) {
 		WHOAMI = CONNECTOR;
 		
 		// connect signal handler for SIGUSR2
-		signal(SIGUSR2, connector_handler_sigusr2);
+		struct sigaction action;
+		action.sa_handler = connector_handler_sigusr2;
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = 0;
+		sigaction(SIGUSR2, &action, NULL);
+/*		signal(SIGUSR2, connector_handler_sigusr2);*/
+
 		// receive SIGUSR2 if parent (= thinker) dies
 		prctl(PR_SET_PDEATHSIG, SIGUSR2);
 		
@@ -143,14 +152,12 @@ int main(int argc, char *argv[]) {
 				}
 				char *serialized_field = (char *) shmat(GAME_STATE->field_shmid, NULL, 0);
 				if(serialized_field == (char *) -1) {
-					// thinker will remove the shm in cleanup()
 					die("Could not attach shared memory!", EXIT_FAILURE);
 				}
-				fieldSerialize(field, serialized_field);
-				if(shmdt(serialized_field) == -1) {
-					// thinker will remove the shm in cleanup()
-					die("Could not detach shared memory!", EXIT_FAILURE);
+				if(shmctl(GAME_STATE->field_shmid, IPC_RMID, 0) == -1) {
+					die("Could not set shared memory for removal on last process' detachment!", EXIT_FAILURE);
 				}
+				fieldSerialize(field, serialized_field);
 				free(field->field_data);
 				free(field);
 				
@@ -181,6 +188,9 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 				}
+				if(shmdt(serialized_field) == -1) {
+					die("Could not detach shared memory!", EXIT_FAILURE);
+				}
 			}
 		}
 	} else { // parent process = thinker
@@ -189,7 +199,12 @@ int main(int argc, char *argv[]) {
 		GAME_STATE->pid_thinker = getpid();
 
 		// connect signal handler for SIGUSR1
-		signal(SIGUSR1, thinker_handler_sigusr1);
+		struct sigaction action;
+		action.sa_handler = thinker_handler_sigusr1;
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = 0;
+		sigaction(SIGUSR1, &action, NULL);
+//		signal(SIGUSR1, thinker_handler_sigusr1);
 
 		// close read end of the pipe
 		close(PIPE[0]);
@@ -197,9 +212,9 @@ int main(int argc, char *argv[]) {
 		// wait for connector to finish
 		int status, r;
 		while(1) {
-			r = wait(&status);
-			printf("wait() result %d status %d\n", r, status);
-			if(r != -1 && status != 0 && status != 4205776) {
+			r = waitpid(GAME_STATE->pid_connector, &status, 0);
+			DEBUG("waitpid() result %d status %d errno %d\n", r, status, errno);
+			if(r != -1) {
 				break;
 			}
 		}

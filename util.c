@@ -12,7 +12,7 @@ void cleanup() {
 	if(SOCKET != -1) {
 		close(SOCKET);
 	}
-	// free GAME_STATE struct's space if necessary
+	// set shared memories for removal (to make as sure as possible it's removed ...)
 	if(GAME_STATE != (struct game_state *) -1) {
 		if(GAME_STATE->field_shmid > 0) {
 			shmctl(GAME_STATE->field_shmid, IPC_RMID, 0);
