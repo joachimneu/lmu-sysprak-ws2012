@@ -73,8 +73,8 @@ void fieldPrint(struct field *f) {
 	for(i=f->height-1; i>=0; i--) {
 		printf("%i\t|", i+1);
 		for(j=0; j<f->width; j++) {
-			printf("%c(%c%s)\t|", ((i+j)%2==1)?'W':'B', 
-					(f->field_data[i*f->width+j]<=1)?'E':(f->field_data[i*f->width+j]==3||f->field_data[i*f->width+j]==7)?'B':'W',
+			printf("%c(%c%s)\t|", ((i+j)%2==1)?'_':' ', 
+					(f->field_data[i*f->width+j]<=1)?' ':(f->field_data[i*f->width+j]==3||f->field_data[i*f->width+j]==7)?'B':'W',
 					(f->field_data[i*f->width+j]>=7)?"*":"");
 		}
 		printf("\n");

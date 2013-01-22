@@ -169,7 +169,7 @@ int handleLine() {
 		int id_winner;
 		char color_winner[512];
 		sscanf(buf, "+ GAMEOVER %i %s", &id_winner, color_winner);
-		printf("Gewinner hat ID: %i und Farbe: %s", id_winner, color_winner);
+		printf("Gewinner hat ID: %i und Farbe: %s\n", id_winner, color_winner);
 		struct field *f = receiveField(SOCKET);
 		fieldPrint(f);
 		free(f);
