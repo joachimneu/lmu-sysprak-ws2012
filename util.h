@@ -4,6 +4,10 @@
 #include "globals.h"
 
 #define sizeof_member(type, member) sizeof(((type *)0)->member)
+#define false 0
+#define FALSE 0
+#define true 1
+#define TRUE 1
 
 void cleanup();
 void die(char *, int);
