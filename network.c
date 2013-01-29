@@ -36,6 +36,8 @@ char *_receiveLine(int sock) {
 	return buf;
 }
 
+// recvLine: receives a line from the given socket and performs death
+// if the line doesn't start with '+'
 char *recvLine(int sock) {
 	char *buf;
 	// receive the line
@@ -169,7 +171,7 @@ int handleLine() {
 		int id_winner;
 		char color_winner[512];
 		sscanf(buf, "+ GAMEOVER %i %s", &id_winner, color_winner);
-		printf("Gewinner hat ID: %i und Farbe: %s\n", id_winner, color_winner);
+		DEBUG("Gewinner hat ID: %i und Farbe: %s\n", id_winner, color_winner);
 		struct field *f = receiveField(SOCKET);
 		fieldPrint(f);
 		free(f);
@@ -182,7 +184,7 @@ int handleLine() {
 		free(buf);
 		buf = recvLine(SOCKET);
 		if(strncmp(buf, "+ STATUS ", 9) == 0) { // read status if any (might be "+ NOSTATUS" otherwise)
-			printf("Status message: %s\n",buf+9);
+			DEBUG("Status message: %s\n", buf+9);
 		}
 		free(buf);
 		return move_duration;

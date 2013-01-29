@@ -70,7 +70,7 @@ void fieldPrint(struct field *f) {
 
 	printf("X/Y\t|");
 	// 1. Row: column names (A,B,C,...)
-	for(x=0; x<f->width; x++) {
+	for(x=0; x < f->width; x++) {
 		printf("%c\t|", 65+x);
 	}
 	printf("\n");
