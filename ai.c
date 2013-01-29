@@ -8,133 +8,61 @@
 
 #include "ai.h"
 #include "util.h"
-
-int protectedLeft(int x, int y, struct field *f) {
-	int *d = f->field_data;
-	if (d[x*f->width + y] == 5 || d[x*f->width + y] == 9) { // White
-		if (y==0 || x==0 || d[(x-1)*f->width + y-1] != 1) {
-			return 1;
-		}
-	} else {
-		if (y==0 || (x+1)==f->height || d[(x+1)*f->width + y-1] != 1) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-int protectedRight(int x, int y, struct field *f) {
-	int *d = f->field_data;
-	if (d[x*f->width + y] == 5 || d[x*f->width + y] == 9) { // White
-		if ((y+1)==f->width || x==0 || d[(x-1)*f->width + y+1] != 1) {
-			return 1;
-		}
-	} else {
-		if ((y+1)==f->width || (x+1)==f->height || d[(x+1)*f->width + y+1] != 1) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-int rateMove(struct field *f) {
-	int rating = 0, white_score = 0, black_score = 0, x, y;
-	int *d = f->field_data;
-	
-	for (y=0; y<f->height; y++) {
-		for (x=0; x<f->width; x++) {
-			switch (d[x*f->height+y]) {
-				case 3:
-					black_score += 100; // 100 Points for having the piece
-					black_score += (f->height-1-x)*2; // 2 Points for each row closer to enemy home row (whites home row is at i=0)
-					if ((x+1)==f->height) { black_score += 500;} // 500 Points for protecting the home row
-					if ( (y>0 && d[(x-1)*f->height + (y-1)] == 5 	&& !protectedLeft(x,y,f)) 
-						|| ((y+1)<f->width && d[(x-1)*f->height + (y+1)] == 5 && !protectedRight(x,y,f))	) {
-						black_score -= 70; // -90 Points for being about to be taken (by regular enemy piece)
-						printf("gg %d %d\n", x, y);
-					}
-					break;
-				case 5:
-					white_score += 100; 
-					white_score += x*2; 
-					if (x==0) { white_score += 500;}
-					if ( (y>0 && d[(x+1)*f->height+(y-1)] == 5 	&& !protectedLeft(x,y,f)) 
-						|| ((y+1)<f->width && d[(x+1)*f->height + (y+1)] == 5 && !protectedRight(x,y,f))	) {
-						black_score -= 90; // -90 Points for being about to be taken
-					}
-					break;
-				case 7: // Black Queen
-					black_score += 1000;
-					break;
-				case 9: // White Queen
-					white_score += 1000;
-					break;
-			}
-		}
-	}
-	
-	if(GAME_STATE->own_player_id == 1) { // White
-		rating = white_score - black_score;
-	} else {
-		rating = black_score - white_score;
-	}
-	
-	return rating;
-}
+#include "debug.h"
 
 // this is somewhat similar to "yield" in Python ... ;)
 #define nextMoveYield { swapcontext(my_context, caller_context); }
 
-#define moveLeftX(cx) (cx-1)
-#define moveRightX(cx) (cx+1)
-#define moveLeftY(cy) (player_id==1)?cy+1:cy-1
-#define moveRightY(cy) (player_id==1)?cy+1:cy-1
+#define fieldAheadLeftX(cx) (cx-1)
+#define fieldAheadRightX(cx) (cx+1)
+#define fieldAheadLeftY(cy) ((player_id==1)?cy+1:cy-1)
+#define fieldAheadRightY(cy) ((player_id==1)?cy+1:cy-1)
+#define fieldBackLeftX(cx) (cx-1)
+#define fieldBackRightX(cx) (cx+1)
+#define fieldBackLeftY(cy) ((player_id==1)?cy-1:cy+1)
+#define fieldBackRightY(cy) ((player_id==1)?cy-1:cy+1)
 
 #define fieldIndex(x, y) (y*8+x)
-#define fieldValue(f, x, y) f->field_data[fieldIndex(x, y)]
-#define fieldExists(x, y) (x>7||x<0||y>7||y<0)?false:true
-#define fieldEmpty(f, x, y) (fieldValue(f, x, y)==1)?true:false
-#define fieldIsOpponent(f, x, y) (player_id==1)?((fieldValue(f, x, y)==3||fieldValue(f, x, y)==7)?true:false):((fieldValue(f, x, y)==5||fieldValue(f, x, y)==9)?true:false)
+#define fieldValue(f, x, y) (f->field_data[fieldIndex(x, y)])
+#define fieldExists(x, y) ((x>7||x<0||y>7||y<0)?false:true)
+#define fieldIsEmpty(f, x, y) ((fieldValue(f, x, y)==1)?true:false)
+#define fieldIsOpponent(f, x, y) ((player_id==1)?((fieldValue(f, x, y)==3||fieldValue(f, x, y)==7)?true:false):((fieldValue(f, x, y)==5||fieldValue(f, x, y)==9)?true:false))
 
-#define moveIfPossible(methodX, methodY) \
-				dx = methodX(cx); dy = methodY(cy); \
-				if(fieldExists(dx, dy)&&fieldEmpty(old_field, dx, dy)) { \
-					struct field new_field; \
-					int *field_data; \
-					field_data = (int *) malloc(sizeof(int) * old_field->width * old_field->height); \
-					memcpy(&new_field, old_field, sizeof(struct field)); \
-					new_field.field_data = field_data; \
-					memcpy(field_data, old_field->field_data, sizeof(int) * old_field->width * old_field->height); \
-					\
-					new_field.field_data[fieldIndex(dx, dy)] = fieldValue(old_field, cx, cy); \
-					new_field.field_data[fieldIndex(cx, cy)] = 1; \
-					\
+#define yieldMoveMoveIfPossible() { \
+				if(fieldExists(dx, dy) && fieldIsEmpty(old_field, dx, dy)) { \
+					current_field = fieldClone(old_field); \
+					current_field->field_data[fieldIndex(dx, dy)] = cf; \
+					current_field->field_data[fieldIndex(cx, cy)] = 1; \
 					encodeMove(current_move, cx, cy, dx, dy); \
-					*current_rating = rateMove(&new_field); \
+					*current_rating = rateMove(current_field, player_id); \
 					nextMoveYield; \
-				}
+					fieldFree(current_field); \
+				} \
+			}
 
-#define killIfPossible(methodX, methodY) \
-				if(fieldExists(dx, dy)&&fieldIsOpponent(old_field, dx, dy)) { \
-					int lx, ly; \
-					lx = methodX(dx); ly = methodY(dy); \
-					if(fieldExists(lx, ly)&&fieldEmpty(old_field, lx, ly)) { \
-						struct field new_field; \
-						int *field_data; \
-						field_data = (int *) malloc(sizeof(int) * old_field->width * old_field->height); \
-						memcpy(&new_field, old_field, sizeof(struct field)); \
-						new_field.field_data = field_data; \
-						memcpy(field_data, old_field->field_data, sizeof(int) * old_field->width * old_field->height); \
-						\
-						new_field.field_data[fieldIndex(lx, ly)] = fieldValue(old_field, cx, cy); \
-						new_field.field_data[fieldIndex(cx, cy)] = 1; \
-						new_field.field_data[fieldIndex(dx, dy)] = 1; \
-						\
+#define yieldKillMoveIfPossible() { \
+					if(fieldExists(dx, dy) && fieldExists(lx, ly) && fieldIsOpponent(old_field, dx, dy) && fieldIsEmpty(old_field, lx, ly)) { \
+						current_field = fieldClone(old_field); \
+						current_field->field_data[fieldIndex(lx, ly)] = cf; \
+						current_field->field_data[fieldIndex(dx, dy)] = 1; \
+						current_field->field_data[fieldIndex(cx, cy)] = 1; \
 						encodeMove(current_move, cx, cy, lx, ly); \
-						*current_rating = rateMove(&new_field); \
+						*current_rating = rateMove(current_field, player_id); \
 						nextMoveYield; \
+						fieldFree(current_field); \
 					} \
 				}
+
+#define penaltyForBeingAboutToBeTakenStein(score_variable) penaltyForBeingAboutToBeTaken(score_variable, -70);
+#define penaltyForBeingAboutToBeTakenDame(score_variable) penaltyForBeingAboutToBeTaken(score_variable, -250);
+
+#define penaltyForBeingAboutToBeTaken(score_variable, points) { \
+					if(fieldExists(ox, oy) && fieldExists(px, py) && fieldIsOpponent(f, ox, oy) && fieldIsEmpty(f, px, py)) { \
+						score_variable += points; \
+					} \
+				}
+
+#define sgn(x) ((x<0)?(-1):((x==0)?(0):(+1)))
 
 char encodeX(int x) {
 	return "ABCDEFGH"[x];
@@ -156,40 +84,208 @@ void encodeMove(char *dst, int cx, int cy, int dx, int dy) {
 	dst[5] = 0;
 }
 
+bool straightLineIsFree(struct field *f, int src_x, int src_y, int dst_x, int dst_y) {
+	int dx, dy, cx = src_x, cy = src_y;
+	dx = sgn(dst_x - src_x);
+	dy = sgn(dst_y - src_y);
+	do {
+		cx += dx; cy += dy;
+		if(fieldValue(f, cx, cy) != 1) {
+			return false;
+		}
+	} while(cx != dst_x && cy != dst_y);
+	return true;
+}
+
+bool straightLineHasOnlyOneOpponent(struct field *f, int player_id, int src_x, int src_y, int dst_x, int dst_y, int *opp_x, int *opp_y) {
+	int dx, dy, cx = src_x, cy = src_y;
+	bool opponent_found = false;
+	dx = sgn(dst_x - src_x);
+	dy = sgn(dst_y - src_y);
+	do {
+		cx += dx; cy += dy;
+		if(fieldValue(f, cx, cy) != 1) {
+			if(fieldIsOpponent(f, dx, dy) && opponent_found == false) {
+				// found the first opponent
+				*opp_x = cx;
+				*opp_y = cy;
+				opponent_found = true;
+			} else if(fieldIsOpponent(f, dx, dy) && opponent_found == true) {
+				// found a second opponent ...
+				return false;
+			} else {
+				// found one of my own Steins or Dames
+				return false;
+			}
+		}
+	} while(cx != dst_x && cy != dst_y);
+	if(!opponent_found) {
+		return false;
+	}
+	return true;
+}
+
+int rateMove(struct field *f, int player_id) {
+	int white_score = 0;
+	int black_score = 0;
+	int x, y, ox, oy, px, py;
+	
+	for (y=0; y < (f->height); y++) {
+		for (x=0; x < (f->width); x++) {
+			switch (fieldValue(f, x, y)) {
+				case 3: // black Stein
+					// 100 points for having the Stein
+					black_score += 100;
+					
+					// 2 points for each row closer to enemy home row (white's home row is at i=0)
+					black_score += (f->height - y) * 2;
+					
+					// 1 point for most left / most right column
+					if (x == 0 || (x+1) == f->width) {
+						black_score += 1;
+					}
+					
+					// 1000 points for protecting the home row
+					// (we should never ever give it up as long as we can avoid it ...)
+					if ((y+1) == f->height) {
+						black_score += 1000;
+					}
+					
+					// -70 points for being about to be taken (by enemy Stein)
+					// ox = opponent x, oy = opponent y, px = protection x, py = protection y
+					ox = fieldAheadLeftX(x); oy = fieldAheadLeftY(y); px = fieldBackRightX(x); py = fieldBackRightY(y);
+					penaltyForBeingAboutToBeTakenStein(black_score);
+					ox = fieldAheadRightX(x); oy = fieldAheadRightY(y); px = fieldBackLeftX(x); py = fieldBackLeftY(y);
+					penaltyForBeingAboutToBeTakenStein(black_score);
+					ox = fieldBackLeftX(x); oy = fieldBackLeftY(y); px = fieldAheadRightX(x); py = fieldAheadRightY(y);
+					penaltyForBeingAboutToBeTakenStein(black_score);
+					ox = fieldBackRightX(x); oy = fieldBackRightY(y); px = fieldAheadLeftX(x); py = fieldAheadLeftY(y);
+					penaltyForBeingAboutToBeTakenStein(black_score);
+					break;
+				case 5: // white Stein
+					// 100 points for having the Stein
+					white_score += 100;
+					
+					// 2 points for each row closer to enemy home row (white's home row is at i=0)
+					white_score += y * 2;
+					
+					// 1 point for most left / most right column
+					if (x == 0 || (x+1) == f->width) {
+						white_score += 1;
+					}
+					
+					// 1000 points for protecting the home row
+					// (we should never ever give it up as long as we can avoid it ...)
+					if (y == 0) {
+						white_score += 1000;
+					}
+					
+					// -70 points for being about to be taken (by enemy Stein)
+					// ox = opponent x, oy = opponent y, px = protection x, py = protection y
+					ox = fieldAheadLeftX(x); oy = fieldAheadLeftY(y); px = fieldBackRightX(x); py = fieldBackRightY(y);
+					penaltyForBeingAboutToBeTakenStein(white_score);
+					ox = fieldAheadRightX(x); oy = fieldAheadRightY(y); px = fieldBackLeftX(x); py = fieldBackLeftY(y);
+					penaltyForBeingAboutToBeTakenStein(white_score);
+					ox = fieldBackLeftX(x); oy = fieldBackLeftY(y); px = fieldAheadRightX(x); py = fieldAheadRightY(y);
+					penaltyForBeingAboutToBeTakenStein(white_score);
+					ox = fieldBackRightX(x); oy = fieldBackRightY(y); px = fieldAheadLeftX(x); py = fieldAheadLeftY(y);
+					penaltyForBeingAboutToBeTakenStein(white_score);
+					break;
+				case 7: // black Dame
+					// 500 points for having a Dame
+					black_score += 500;
+
+					// -250 points for being about to be taken (by enemy Stein)
+					// ox = opponent x, oy = opponent y, px = protection x, py = protection y
+					ox = fieldAheadLeftX(x); oy = fieldAheadLeftY(y); px = fieldBackRightX(x); py = fieldBackRightY(y);
+					penaltyForBeingAboutToBeTakenDame(black_score);
+					ox = fieldAheadRightX(x); oy = fieldAheadRightY(y); px = fieldBackLeftX(x); py = fieldBackLeftY(y);
+					penaltyForBeingAboutToBeTakenDame(black_score);
+					ox = fieldBackLeftX(x); oy = fieldBackLeftY(y); px = fieldAheadRightX(x); py = fieldAheadRightY(y);
+					penaltyForBeingAboutToBeTakenDame(black_score);
+					ox = fieldBackRightX(x); oy = fieldBackRightY(y); px = fieldAheadLeftX(x); py = fieldAheadLeftY(y);
+					penaltyForBeingAboutToBeTakenDame(black_score);
+					break;
+				case 9: // white Dame
+					// 500 points for having a Dame
+					white_score += 500;
+
+					// -250 points for being about to be taken (by enemy Stein)
+					// ox = opponent x, oy = opponent y, px = protection x, py = protection y
+					ox = fieldAheadLeftX(x); oy = fieldAheadLeftY(y); px = fieldBackRightX(x); py = fieldBackRightY(y);
+					penaltyForBeingAboutToBeTakenDame(white_score);
+					ox = fieldAheadRightX(x); oy = fieldAheadRightY(y); px = fieldBackLeftX(x); py = fieldBackLeftY(y);
+					penaltyForBeingAboutToBeTakenDame(white_score);
+					ox = fieldBackLeftX(x); oy = fieldBackLeftY(y); px = fieldAheadRightX(x); py = fieldAheadRightY(y);
+					penaltyForBeingAboutToBeTakenDame(white_score);
+					ox = fieldBackRightX(x); oy = fieldBackRightY(y); px = fieldAheadLeftX(x); py = fieldAheadLeftY(y);
+					penaltyForBeingAboutToBeTakenDame(white_score);
+					break;
+			}
+		}
+	}
+	
+	if(player_id == 1) {
+		// I am white
+		return white_score - black_score;
+	} else {
+		// I am black
+		return black_score - white_score;
+	}
+}
+
 void nextMove(ucontext_t *my_context, ucontext_t *caller_context, int player_id, struct field *old_field, struct field *current_field, char *current_move, int *current_rating) {
 	int cx = 0;
 	int cy = 0;
 	for(cy = 0; cy <= 7; cy++) {
 		for(cx = 0; cx <= 7; cx++) {
-			printf("%d ", fieldValue(old_field, cx, cy));
-			
-		}
-		printf("\n");
-	}
-	for(cy = 0; cy <= 7; cy++) {
-		for(cx = 0; cx <= 7; cx++) {
 			int cf = fieldValue(old_field, cx, cy);
-/*			printf("%d ", cf);*/
-			int dx, dy;
+			int dx, dy, lx, ly;
+			// cx = current x, cy = current y
 			if((cf == 5 && player_id == 1) || (cf == 3 && player_id == 2)) {
 				// Stein, correct player
-				moveIfPossible(moveLeftX, moveLeftY)
-				else killIfPossible(moveLeftX, moveLeftY)
-				moveIfPossible(moveRightX, moveRightY)
-				else killIfPossible(moveRightX, moveRightY)
-			} else if(cf == 7 && player_id == 2) {
-				// black Dame, black player
-				
-				*current_rating = 10;
-/*				nextMoveYield;*/
-			} else if(cf == 9 && player_id == 1) {
-				// white Dame, white player
-				
-				*current_rating = 10;
-/*				nextMoveYield;*/
+				// dx = destination x, dy = destination y
+				dx = fieldAheadLeftX(cx); dy = fieldAheadLeftY(cy);
+				yieldMoveMoveIfPossible();
+				dx = fieldAheadRightX(cx); dy = fieldAheadRightY(cy);
+				yieldMoveMoveIfPossible();
+				// dx = opponent x, dy = opponent y, lx = destination x, ly = destination y
+				dx = fieldAheadLeftX(cx); dy = fieldAheadLeftY(cy); lx = fieldAheadLeftX(dx); ly = fieldAheadLeftY(dy);
+				yieldKillMoveIfPossible();
+				dx = fieldAheadRightX(cx); dy = fieldAheadRightY(cy); lx = fieldAheadRightX(dx); ly = fieldAheadRightY(dy);
+				yieldKillMoveIfPossible();
+				dx = fieldBackLeftX(cx); dy = fieldBackLeftY(cy); lx = fieldBackLeftX(dx); ly = fieldBackLeftY(dy);
+				yieldKillMoveIfPossible();
+				dx = fieldBackRightX(cx); dy = fieldBackRightY(cy); lx = fieldBackRightX(dx); ly = fieldBackRightY(dy);
+				yieldKillMoveIfPossible();
+			} else if((cf == 9 && player_id == 1) || (cf == 7 && player_id == 2)) {
+				// Dame, correct player
+				int i = 0, j = 0;
+				for(j = 0; j < 2; j++) {
+					for(i = -8; i <= 8; i++) {
+						if(j == 1) {
+							dx = cx + i; dy = cy - i;
+						} else {
+							dx = cx - i; dy = cy - i;
+						}
+						if(!fieldExists(dx, dy) || !fieldIsEmpty(old_field, dx, dy)) {
+							continue;
+						}
+						// dx = destination x, dy = destination y
+						if(straightLineIsFree(old_field, cx, cy, dx, dy)) {
+							yieldMoveMoveIfPossible();
+						} else {
+							lx = dx;
+							ly = dy;
+							// dx = opponent x, dy = opponent y, lx = destination x, ly = destination y
+							if(straightLineHasOnlyOneOpponent(old_field, player_id, cx, cy, lx, ly, &dx, &dy)) {
+								yieldKillMoveIfPossible();
+							}
+						}
+					}
+				}
 			}
 		}
-/*		printf("\n");*/
 	}
 }
 
@@ -224,11 +320,11 @@ char *think(struct field *field) {
 		iterator_terminated = true;
 		while(1) {
 			swapcontext(&context_resume, &context_callee);
-			printf("new move: %s (%d)\n", current_move, current_rating);
+			DEBUG("new move: %s (%d)\n", current_move, current_rating);
 			if(current_rating > best_rating) {
 				strcpy(best_move, current_move);
 				best_rating = current_rating;
-				printf("new best move: %s (%d)\n", best_move, best_rating);
+				DEBUG("new best move: %s (%d)\n", best_move, best_rating);
 			}
 		}
 	}

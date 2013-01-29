@@ -60,8 +60,7 @@ void thinker_handler_sigusr1() {
 		
 		// free move & field
 		free(move);
-		free(field->field_data);
-		free(field);
+		fieldFree(field);
 	}
 }
 
@@ -158,8 +157,7 @@ int main(int argc, char *argv[]) {
 					die("Could not set shared memory for removal on last process' detachment!", EXIT_FAILURE);
 				}
 				fieldSerialize(field, serialized_field);
-				free(field->field_data);
-				free(field);
+				fieldFree(field);
 				
 				// make thinker think
 				kill(GAME_STATE->pid_thinker, SIGUSR1);

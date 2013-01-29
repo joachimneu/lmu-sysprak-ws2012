@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -79,6 +80,20 @@ void fieldPrint(struct field *f) {
 		}
 		printf("\n");
 	}
+}
+
+struct field *fieldClone(struct field *g) {
+	struct field *f = (struct field *) malloc(sizeof(struct field));
+	int *field_data = (int *) malloc(sizeof(int) * g->width * g->height);
+	memcpy(f, g, sizeof(struct field));
+	f->field_data = field_data;
+	memcpy(field_data, g->field_data, sizeof(int) * g->width * g->height);
+	return f;
+}
+
+void fieldFree(struct field *f) {
+	free(f->field_data);
+	free(f);
 }
 
 void shortSerialize(short i, char dst[2]) {

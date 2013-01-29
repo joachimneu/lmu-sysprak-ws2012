@@ -8,6 +8,7 @@
 #define FALSE 0
 #define true 1
 #define TRUE 1
+#define bool char
 
 void cleanup();
 void die(char *, int);
@@ -16,6 +17,8 @@ void fieldSerialize(struct field *, char *);
 void fieldDeserialize(char *, struct field *);
 int fieldSerializedSize(struct field *);
 void fieldPrint(struct field *);
+struct field *fieldClone(struct field *);
+void fieldFree(struct field *);
 void shortSerialize(short, char *);
 short shortDeserialize(char *);
 
