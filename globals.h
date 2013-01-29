@@ -29,7 +29,7 @@ struct game_state {
 
 	// configuration file parameters
 	char config_hostname[512];
-	short config_port;
+	unsigned short config_port;
 	char config_gamekindname[512];
 	
 	// field SHM ID (for the field shared between connector/thinker)

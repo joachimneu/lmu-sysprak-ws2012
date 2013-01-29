@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <errno.h>
-
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -45,10 +43,10 @@ void thinker_handler_sigusr1() {
 		if(shmdt(serialized_field) == -1) {
 			die("Could not detach shared memory!", EXIT_FAILURE);
 		}
-		
+
 		// clear shared memory
 		GAME_STATE->field_shmid = 0;
-		
+
 		// think & send move to connector
 		char *move = think(field);
 		DEBUG("move: %s\n", move);
@@ -57,7 +55,7 @@ void thinker_handler_sigusr1() {
 		write(PIPE[1], buf, 2);
 		write(PIPE[1], move, strlen(move));
 		DEBUG("written in die pipe ...\n");
-		
+
 		// free move & field
 		free(move);
 		fieldFree(field);
@@ -74,7 +72,7 @@ void usage(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
 	int shmid = 0;
 	pid_t tmp_pid;
-	
+
 	// "validate" first parameter: game id (gid)
 	if(argc < 2 || argc > 3) {
 		usage(argc, argv);
@@ -84,9 +82,8 @@ int main(int argc, char *argv[]) {
 	  usage(argc, argv);
 	  die("The game id (gid) has to be exactly 13 digits!", EXIT_FAILURE);
   }
-	
+
 	// allocate shared memory for global GAME_STATE struct
-	// (maybe we should not use 0x23421337 here as SHM key?)
 	if((shmid = shmget(IPC_PRIVATE, sizeof(struct game_state), IPC_CREAT | IPC_EXCL | 0666)) < 0) {
 		die("Could not get shared memory!", EXIT_FAILURE);
 	}
@@ -104,8 +101,8 @@ int main(int argc, char *argv[]) {
 	strcpy(GAME_STATE->game_id, argv[1]);
 	GAME_STATE->field_shmid = 0;
 
-	// read configuration file (from 2nd argument if provided, o/w use default path)
-	readConfig((argc==3)?argv[2]:DEFAULT_CONFIG_FILE_NAME);
+	// read configuration file (from 3rd argument if provided, o/w use default path)
+	readConfig((argc==3) ? argv[2] : DEFAULT_CONFIG_FILE_NAME);
 
 	// open connection (i.e. socket + tcp connection)
 	openConnection();
@@ -123,18 +120,18 @@ int main(int argc, char *argv[]) {
 		die("Could not fork for thinker/connector processes!", EXIT_FAILURE);
 	} else if(tmp_pid == 0) { // child process = connector
 		WHOAMI = CONNECTOR;
-		
+
 		// connect signal handler for SIGUSR2
 		struct sigaction action;
 		action.sa_handler = connector_handler_sigusr2;
 		sigemptyset(&action.sa_mask);
 		action.sa_flags = 0;
 		sigaction(SIGUSR2, &action, NULL);
-/*		signal(SIGUSR2, connector_handler_sigusr2);*/
+		/* signal(SIGUSR2, connector_handler_sigusr2); */
 
 		// receive SIGUSR2 if parent (= thinker) dies
 		prctl(PR_SET_PDEATHSIG, SIGUSR2);
-		
+
 		// close write end of the pipe
 		close(PIPE[1]);
 
@@ -144,7 +141,7 @@ int main(int argc, char *argv[]) {
 				struct field *field;
 				field = receiveField(SOCKET);
 				sendTHINKING(SOCKET);
-				
+
 				// serialize data into shm
 				if((GAME_STATE->field_shmid = shmget(IPC_PRIVATE, fieldSerializedSize(field), IPC_CREAT | IPC_EXCL | 0666)) < 0) {
 					die("Could not get shared memory!", EXIT_FAILURE);
@@ -158,10 +155,9 @@ int main(int argc, char *argv[]) {
 				}
 				fieldSerialize(field, serialized_field);
 				fieldFree(field);
-				
 				// make thinker think
 				kill(GAME_STATE->pid_thinker, SIGUSR1);
-				
+
 				expectOKTHINK(SOCKET);
 
 				// Now we have to listen for new lines from the server and from the thinker simultaneously
@@ -170,7 +166,7 @@ int main(int argc, char *argv[]) {
 					FD_ZERO(&descriptors);
 					FD_SET(SOCKET, &descriptors);
 					FD_SET(PIPE[0], &descriptors);
-					select(FD_SETSIZE, &descriptors, NULL, NULL, NULL); // waits until an element of 'descriptors' allows for nonblocking read operation (also stops on any signal)
+					select(FD_SETSIZE, &descriptors, NULL, NULL, NULL); // waits until an element of 'descriptors' allows for nonblocking read operation (also stops on any signal -> enclosed in loop)
 					if(FD_ISSET(SOCKET, &descriptors)) { // new line from Server (we don't expect any lines -> must be an error)
 						dumpLine(SOCKET);
 					}
@@ -217,7 +213,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-	
+
 	if(WHOAMI == THINKER) {
 		cleanup();
 	}

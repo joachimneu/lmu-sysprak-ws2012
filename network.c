@@ -29,9 +29,9 @@ char *_receiveLine(int sock) {
 		i++;
 	// end when the received byte was a \n-byte
 	} while((c != '\n') && (i < 512));
-	// terminating 0-byte for the string
-	buf[i] = 0;
-	buf[strlen(buf)-1] = 0; // we're not interested in the \n ...*/
+
+	buf[i] = 0; // terminating 0-byte for the string
+	buf[strlen(buf)-1] = 0; // we're not interested in the \n ...
 	DEBUG("_receiveLine: %d '%s'\n", (int) strlen(buf), buf);
 	return buf;
 }
@@ -50,7 +50,7 @@ char *recvLine(int sock) {
 
 void sendLine(int sock, const char* format, ...) {
 	char buf[1024];
-	// format the line to send
+	// format the line to send (using vsnprintf to imitate variable parameter behaviour of printf(s, ...) )
 	va_list argptr;
 	va_start(argptr, format);
 	vsnprintf(buf, sizeof(buf), format, argptr);
@@ -86,7 +86,7 @@ void cmdID(int sock, char *game_id) {
 	sendLine(sock, "ID %s", game_id);
 	buf = recvLine(sock);
 	// check for right gamekind
-	if((memcmp(buf, "+ PLAYING", 9) != 0) || (memcmp(buf+10, GAME_STATE->config_gamekindname, strlen(GAME_STATE->config_gamekindname) - 1) != 0)) {
+	if((strncmp(buf, "+ PLAYING", 9) != 0) || (strncmp(buf+10, GAME_STATE->config_gamekindname, strlen(GAME_STATE->config_gamekindname) - 1) != 0)) {
 		die("Gameserver sent wrong game kind!", EXIT_FAILURE);
 	}
 	DEBUG("We're playing '%s' as expected ...\n", GAME_STATE->config_gamekindname);
