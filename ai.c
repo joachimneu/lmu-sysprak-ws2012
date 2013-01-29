@@ -102,19 +102,24 @@ bool straightLineHasOnlyOneOpponent(struct field *f, int player_id, int src_x, i
 	bool opponent_found = false;
 	dx = sgn(dst_x - src_x);
 	dy = sgn(dst_y - src_y);
+	DEBUG("straightLineHasOnlyOneOpponent: %d %d %d %d %d %d\n", cx, cy, dst_x, dst_y, dx, dy);
 	do {
 		cx += dx; cy += dy;
+		DEBUG("straightLineHasOnlyOneOpponent: %d %d %d\n", cx, cy, fieldValue(f, cx, cy));
 		if(fieldValue(f, cx, cy) != 1) {
-			if(fieldIsOpponent(f, dx, dy) && opponent_found == false) {
+			if(fieldIsOpponent(f, cx, cy) && opponent_found == false) {
 				// found the first opponent
+				DEBUG("straightLineHasOnlyOneOpponent: first opponent found ...\n");
 				*opp_x = cx;
 				*opp_y = cy;
 				opponent_found = true;
-			} else if(fieldIsOpponent(f, dx, dy) && opponent_found == true) {
+			} else if(fieldIsOpponent(f, cx, cy) && opponent_found == true) {
 				// found a second opponent ...
+				DEBUG("straightLineHasOnlyOneOpponent: unfortunately found a second opponent ...\n");
 				return false;
 			} else {
 				// found one of my own Steins or Dames
+				DEBUG("straightLineHasOnlyOneOpponent: found one of my own steins or dames ...\n");
 				return false;
 			}
 		}

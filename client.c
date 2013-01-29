@@ -23,6 +23,14 @@ int PIPE[2];
 struct game_state *GAME_STATE = (struct game_state *) -1;
 enum whoami WHOAMI = THINKER;
 
+/*
+	Usually the THINKER doesn't die but the CONNECTOR might (connection issues,
+	...). And as waitpid() only works for child processes, it's easier for the
+	THINKER to wait for the CONNECTOR (so the THINKER is the parent and the
+	CONNECTOR is the child) than the other way round. That's why THINKER
+	is parent process and CONNECTOR is child process.
+*/
+
 void connector_handler_sigusr2() {
 	// as our thinker defected to the enemy (we didn't expect that ...)
 	// the connector has to clean the mess up ...
@@ -198,7 +206,6 @@ int main(int argc, char *argv[]) {
 		sigemptyset(&action.sa_mask);
 		action.sa_flags = 0;
 		sigaction(SIGUSR1, &action, NULL);
-//		signal(SIGUSR1, thinker_handler_sigusr1);
 
 		// close read end of the pipe
 		close(PIPE[0]);
