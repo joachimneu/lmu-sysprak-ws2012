@@ -62,20 +62,31 @@ int fieldSerializedSize(struct field *f) {
 	return sizeof(int) * (f->width*f->height + 2);
 }
 
+// Prints a human-readable version of the given field 
 void fieldPrint(struct field *f) {
-	// TODO: something might be wrong ...
-	int i,j;
+	int x,y;
+	const int *d = f->field_data;
+
 	printf("X/Y\t|");
-	for(j=0; j<f->width; j++) {
-		printf("%c\t|", 65+j);
+	// 1. Row: column names (A,B,C,...)
+	for(x=0; x<f->width; x++) {
+		printf("%c\t|", 65+x);
 	}
 	printf("\n");
-	for(i=f->height-1; i>=0; i--) {
-		printf("%i\t|", i+1);
-		for(j=0; j<f->width; j++) {
-			printf("%c(%c%s)\t|", ((i+j)%2==1)?'_':' ', 
-					(f->field_data[i*f->width+j]<=1)?' ':(f->field_data[i*f->width+j]==3||f->field_data[i*f->width+j]==7)?'B':'W',
-					(f->field_data[i*f->width+j]>=7)?"*":"");
+
+	// Print the rows of the field backwards
+	for(y=f->height-1; y>=0; y--) {
+		// 1. Column: row names (n, n-1,..., 2,1)
+		printf("%i\t|", y+1);
+
+		// Print state of each cell: f.i. '_(B*)' = Black cell (_) with black (B) queen (*) on it
+		for(x=0; x<f->width; x++) {
+			// Cell color: cell value = 0 -> white (always empty), o/w black
+			printf("%c", (d[x + y*f->width] == 0)?' ':'_');
+			// Cell values: 3 -> B, 5 -> W, 7 -> B*, 9 -> W*
+			printf("(%c%s)\t|",
+					(d[x + y*f->width] <= 1) ? ' ' : (d[x + y*f->width] == 3 || d[x + y*f->width] == 7) ? 'B' : 'W',
+					(d[x + y*f->width] >= 7) ? "*" : "" );
 		}
 		printf("\n");
 	}
